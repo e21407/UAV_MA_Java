@@ -8,10 +8,10 @@ public class Main {
 		System.out.println("程序开始...");
 		long startTime = System.currentTimeMillis();
 
-		Thread controlWindow = new Thread(new ControlWindow());
-		controlWindow.start();
+//		Thread controlWindow = new Thread(new ControlWindow());
+//		controlWindow.start();
 
-		Markov.generateWorkflows(9);
+		Markov.generateWorkflows(6);
 
 		Markov.markoveFunction();
 		long endTime = System.currentTimeMillis();

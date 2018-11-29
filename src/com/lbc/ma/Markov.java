@@ -15,12 +15,8 @@ import java.util.Set;
 import org.apache.commons.math3.distribution.EnumeratedDistribution;
 import org.apache.commons.math3.util.Pair;
 import org.apache.log4j.Logger;
-import org.jgrapht.graph.DefaultDirectedWeightedGraph;
-
 import com.lbc.ma.dataStructure.Flow;
 import com.lbc.ma.dataStructure.Workflow;
-import com.lbc.ma.graph.MyEdge;
-import com.lbc.ma.graph.MyVertex;
 
 public class Markov {
 
@@ -31,15 +27,13 @@ public class Markov {
 	final static String CapLinks_file = "input_data/_input_Cap_links10000.txt";
 	final static String Info_of_UAVs_file = "input_data/_input_Info_of_nodes.txt";
 	final static String Info_of_WF_Chaneg = "input_data/WF_change_info.txt";
-	
+
 	/**
 	 * {"Src-UAV,Dst-UAV":[path1_id,path2_id,...]}, the candidate path-set for all
 	 * pair of UAVs. !!!! SPECIAL-CASE-20161109: EVEN a SW to itself has an
 	 * individual path_ID, 2016-1109!!!!!
 	 */
 	Map<String, List<Integer>> candPathIDSetFor2UAVs = new HashMap<>();
-
-	DefaultDirectedWeightedGraph<MyVertex, MyEdge> systemNetwork;
 
 	/**
 	 * {Path_id: pathContent}, e.g., pathContent:["1, 2", "2, 5", "5, 3"]; or EMPTY
@@ -157,6 +151,8 @@ public class Markov {
 	static Integer queueTime = -1;
 
 	static Queue<Pair<Integer, String>> WFChangeInfo;
+	
+	static Random randomTool = new Random();
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -282,14 +278,14 @@ public class Markov {
 					Integer uID2 = checkWetherATaskHasAssignment(WF_ID, succTaskID);
 					Integer idxUAV1 = null, idxUAV2 = null;
 					if (null == uID1) {
-						idxUAV1 = new Random().nextInt(numOfUAVs);
+						idxUAV1 = randomTool.nextInt(numOfUAVs);
 						uID1 = lstUAV.get(idxUAV1);
 					}
 					if (null == uID2) {
 						if (succTaskID == 0) {
 							idxUAV2 = numOfUAVs - 1; // 特殊id的任务，固定布置到云端执行
 						}
-						idxUAV2 = new Random().nextInt(numOfUAVs);
+						idxUAV2 = randomTool.nextInt(numOfUAVs);
 						if (idxUAV1 == idxUAV2) {
 							if (idxUAV1 == numOfUAVs - 1) { // 避免同一个节点执行一个flow中的2个任务
 								idxUAV1--;
@@ -302,7 +298,7 @@ public class Markov {
 
 					List<Integer> pathIDList = findPathIDListForAPairOfUAVs(uID1, uID2);
 					if (pathIDList != null) {
-						int idxPath = new Random().nextInt(pathIDList.size());
+						int idxPath = randomTool.nextInt(pathIDList.size());
 						int pathID = pathIDList.get(idxPath);
 						if (!checkWhetherAPathIsFeasibleToTheTaskSegment(pathID, WF_ID, currTaskID, succTaskID)) {
 							tryNo--;
@@ -327,8 +323,8 @@ public class Markov {
 		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
 		logger.debug("分配耗时：" + durTime.setScale(8) + "s");
 	}
-	
-	private Queue<Pair<Integer, String>> initWFChangeInfo(String filePath){
+
+	private Queue<Pair<Integer, String>> initWFChangeInfo(String filePath) {
 		String strFileContent = Tool.getStringFromFile(filePath);
 		String[] lineOfContent = strFileContent.split("\r\n");
 		Queue<Pair<Integer, String>> WFChangeInfo = new LinkedList<>();
@@ -463,7 +459,6 @@ public class Markov {
 		for (Entry<Integer, Double> node : nodes) {
 			// "WF_ID,task_id"
 			List<String> taskListAssignedToAUAV = getTheTaskListAssignedToAUAV(node.getKey());
-			int taskNumAssignedToANode = taskListAssignedToAUAV.size();
 			double totalCapOfAUAV = 0;
 			for (String string : taskListAssignedToAUAV) {
 				String[] strs = string.split(",");
@@ -501,9 +496,116 @@ public class Markov {
 		global_weighted_RoutingCost = weighted_routing_cost;
 		global_weighted_computeCost = weighted_compute_cost;
 
-		//////////////////////////////////////////////////////////////////////
-		// migrationCost = getMigrationCosts(old_x_wtk, var_x_wtk);
-		//////////////////////////////////////////////////////////////////////
+		long endTime = System.currentTimeMillis();
+		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
+		logger.debug("计算系统性能指标耗时：" + durTime.setScale(8) + "s");
+	}
+
+	private void updateSystemMetrics(List<String> var_y_wpab, List<String> var_x_wtk) {
+		logger.debug("计算系统性能指标...");
+		long startTime = System.currentTimeMillis();
+		moveUnsatisfiedWFFromUAVs();
+		double system_throughput = 0.0;
+		double routingCost = 0.0;
+		double computeCost = 0.0;
+
+		List<Integer> listOfSatisfiedWF_ID = getListOfSatisfiedWF();
+		for (Integer WF_ID : listOfSatisfiedWF_ID) {
+			// List<Flow> flows = WFInfo.get(WF_ID);
+			synchronized (WFInfo) {
+				ArrayList<Flow> flows = null;
+				for (Workflow wf : WFInfo) {
+					if (wf.getWF_ID() == WF_ID)
+						flows = wf.getFlows();
+				}
+				if (flows != null) {
+					for (Flow aFlow : flows) {
+						int taskAID = aFlow.getCurrTask().getTaskId();
+						int taskBID = aFlow.getSuccTask().getTaskId();
+						double bandwidth = aFlow.getNeededBandwidth();
+						system_throughput += bandwidth;
+						int IUPathID = -1;
+						// ----getTheIUPathIDBetweenTwoTask(WF_ID, taskAID, taskBID);---
+						for (String str : var_y_wpab) {
+							String[] sstr = str.split(",");
+							int w = Integer.valueOf(sstr[0]).intValue();
+							int a = Integer.valueOf(sstr[2]).intValue();
+							int b = Integer.valueOf(sstr[3]).intValue();
+							if (w == WF_ID && a == taskAID && b == taskBID) {
+								int pathID = Integer.valueOf(sstr[1]).intValue();
+								IUPathID = pathID;
+								break;
+							}
+						}
+						// -------------------------------------------------------------
+						if (IUPathID != -1) {
+							List<String> paths = pathDatabase.get(IUPathID);
+							for (String string : paths) {
+								String[] sstr = string.split(",");
+								int UAV1 = Integer.valueOf(sstr[0]);
+								int UAV2 = Integer.valueOf(sstr[1]);
+								if ((lstEdgeServer.contains(UAV2) && lstEdgeServer.contains(UAV1))
+										|| (lstEdgeServer.contains(UAV1) && lstUAV.contains(UAV2))
+										|| (lstEdgeServer.contains(UAV2) && lstUAV.contains(UAV1))) {
+									routingCost += 1 * EdgeServerLinkCoefficient;
+								} else if ((lstCloudServer.contains(UAV2) && lstCloudServer.contains(UAV1))
+										|| (lstCloudServer.contains(UAV1) && lstEdgeServer.contains(UAV2))
+										|| (lstCloudServer.contains(UAV2) && lstEdgeServer.contains(UAV1))) {
+									routingCost += 1 * CloudServerLinkCoefficient;
+								} else
+									routingCost += 1 * UAVLinkCoefficient;
+							}
+						}
+					}
+				}
+			}
+
+		}
+		Set<Entry<Integer, Double>> nodes = nodeInfo.entrySet();
+		for (Entry<Integer, Double> node : nodes) {
+			// "WF_ID,task_id"
+			List<String> taskListAssignedToAUAV = new ArrayList<>();
+			// ---getTheTaskListAssignedToAUAV(node.getKey());-----
+			for (String str : var_x_wtk) {
+				String[] sstr = str.split(",");
+				int u = Integer.valueOf(sstr[2]);
+				if (u == node.getKey()) {
+					taskListAssignedToAUAV.add(sstr[0] + "," + sstr[1]);
+				}
+			}
+			// ----------------------------------------------------
+			double totalCapOfAUAV = 0;
+			for (String string : taskListAssignedToAUAV) {
+				String[] strs = string.split(",");
+				Integer WF_ID = Integer.valueOf(strs[0]);
+				Integer task_id = Integer.valueOf(strs[1]);
+				FindTask: synchronized (WFInfo) {
+					for (Workflow wf : WFInfo) {
+						if (wf.getWF_ID() == WF_ID) {
+							for (Flow f : wf.getFlows()) {
+								if (task_id == f.getCurrTask().getTaskId()) {
+									totalCapOfAUAV += f.getCurrTask().getNeededResource();
+									break FindTask;
+								}
+								if (task_id == f.getSuccTask().getTaskId()) {
+									totalCapOfAUAV += f.getSuccTask().getNeededResource();
+									break FindTask;
+								}
+							}
+						}
+					}
+				}
+
+			}
+			// 计算代价=(节点需要处理的计算资源需求 / 节点可以提供的计算资源)^2
+			computeCost += Math.pow(totalCapOfAUAV / node.getValue(), 2);
+		}
+		double weighted_routing_cost = WEIGHT_OF_ROUTING_COST * routingCost;
+		double weighted_compute_cost = WEIGHT_OF_COMPUTE_COST * computeCost;
+		double weighted_throughput = WEIGHT_OF_THROUGHPUT * system_throughput;
+		global_system_throughput = weighted_throughput;
+		global_weighted_RoutingCost = weighted_routing_cost;
+		global_weighted_computeCost = weighted_compute_cost;
 
 		long endTime = System.currentTimeMillis();
 		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
@@ -668,13 +770,10 @@ public class Markov {
 		if (!checkWhetherAPathIsFeasibleToTheTaskSegment(pathIDNew, WF_ID, taskAID, taskBID))
 			return null;
 		updateSystemMetrics();
-		double Xf = getObjValOfConfigurationsInWholeSystem_V2();
+		double Xf = getObjValOfConfigurationsInWholeSystem();
 		FakeReplaceReturnResult fakeReplaceResult = fakeReplaceUAVorPathForATaskToReturnEstimatedSysObj(WF_ID, taskAID,
 				taskBID, UAV_IDOld, UAV_IDNew, pathIDOld, pathIDNew);
 		double Xf_prime = fakeReplaceResult.estimatedSysObj;
-		/////////////////////////////////////////////////////////////////////
-
-		/////////////////////////////////////////////////////////////////////
 		double expItem = Math.exp(0.5 * Beta * (Xf_prime - Xf)) + Double.MIN_VALUE/* + 0.00000001 */;
 		// System.out.println("Xf_prime - Xf : " + (Xf_prime - Xf));
 		// System.out.println("expItem: " + expItem);
@@ -696,7 +795,7 @@ public class Markov {
 		int retNIU_UAV_ID = -1;
 		List<Integer> lstNIU_UAV = getListOfNIU_UAV_IDToTheTask(WF_ID, taskID);
 		if (!lstNIU_UAV.isEmpty()) {
-			int idxTargetUAV = new Random().nextInt(lstNIU_UAV.size());
+			int idxTargetUAV = randomTool.nextInt(lstNIU_UAV.size());
 			retNIU_UAV_ID = lstNIU_UAV.get(idxTargetUAV);
 		}
 		return retNIU_UAV_ID;
@@ -729,7 +828,7 @@ public class Markov {
 		List<Integer> candPath = findPathIDListForAPairOfUAVs(UAV1_ID, UAV2_ID);
 		if (candPath == null || candPath.isEmpty())
 			return -1;
-		int idxTargetPath = new Random().nextInt(candPath.size());
+		int idxTargetPath = randomTool.nextInt(candPath.size());
 		return candPath.get(idxTargetPath);
 	}
 
@@ -755,15 +854,6 @@ public class Markov {
 		double queueBlocak = getQueueBlock(Qt, migrationCost, M_avg);
 		double mcost = getMigrationCosts();
 		// return V * xf - queueBlocak * migrationCost;
-		return V * xf - queueBlocak * mcost;
-	}
-
-	private double getObjValOfConfigurationsInWholeSystem_V2() {
-		double xf = global_system_throughput - weight_b_rou * global_weighted_RoutingCost
-				- weight_a_com * global_weighted_computeCost;
-		double queueBlocak = getQueueBlock(Qt, migrationCost, M_avg);
-		double mcost = getMigrationCosts();
-		// return V * xf - queueBlocak * migrationCost;
 		return V * xf - queueBlocak * (mcost - M_avg);
 	}
 
@@ -771,6 +861,9 @@ public class Markov {
 			int taskB_ID, int UAVID_old, int UAVID_new, int pathID_old, int pathID_new) {
 		logger.debug("模拟采用下一个方案...");
 		long startTime = System.currentTimeMillis();
+		// 对原方案信息进行拷贝备份
+		ArrayList<String> x_wtk_clone = (ArrayList<String>) var_x_wtk.clone();
+		ArrayList<String> y_wpab_clone = (ArrayList<String>) var_y_wpab.clone();
 		replaceTheSelectedNewUAVorPathForAFlow(WF_ID, taskA_ID, taskB_ID, UAVID_old, UAVID_new, pathID_old, pathID_new);
 		// System.out.println("swap norm-- (" + taskA_ID + "," + taskB_ID + ") uOld:" +
 		// UAVID_old + " uNew:"
@@ -812,7 +905,7 @@ public class Markov {
 		}
 
 		updateSystemMetrics();
-		double estimatedSysObj = getObjValOfConfigurationsInWholeSystem_V2();
+		double estimatedSysObj = getObjValOfConfigurationsInWholeSystem();
 		// swap back
 		replaceTheSelectedNewUAVorPathForAFlow(WF_ID, taskA_ID, taskB_ID, UAVID_new, UAVID_old, pathID_new, pathID_old);
 		// System.out.println("swap back-- (" + taskA_ID + "," + taskB_ID + ") uOld:" +
@@ -935,14 +1028,10 @@ public class Markov {
 		return resultList;
 	}
 
-	private void updateWorkflowsDuration() {
-		synchronized (WFInfo) {
-			for (Workflow wf : WFInfo) {
-				wf.setDuration(wf.getDuration() - 1);
-			}
-		}
-
-	}
+	/*
+	 * private void updateWorkflowsDuration() { synchronized (WFInfo) { for
+	 * (Workflow wf : WFInfo) { wf.setDuration(wf.getDuration() - 1); } } }
+	 */
 
 	public static void generateWorkflows(int numOfWF) {
 		logger.debug("生成工作流，数量：" + numOfWF);
@@ -1006,14 +1095,13 @@ public class Markov {
 	}
 
 	public static void addWorkflow() {
-		Random ran = new Random();
-		double ranSeed = Double.valueOf(ran.nextInt(100000000)) / 100000000;
+		double ranSeed = Double.valueOf(randomTool.nextInt(100000000)) / 100000000;
 		// if (ranSeed < productionRate) {
 		if (ranSeed < 2) {
 			synchronized (WFInfo) {
 				old_x_wtk = (ArrayList<String>) var_x_wtk.clone();
 				int numOfWFExampleModel = wfGenerator.exampleWorkflows.size() + 1;
-				Workflow aWorkflow = wfGenerator.generateAWorkflow_V2(ran.nextInt(numOfWFExampleModel));
+				Workflow aWorkflow = wfGenerator.generateAWorkflow_V2(randomTool.nextInt(numOfWFExampleModel));
 
 				WFInfo.add(aWorkflow);
 				// 修改工作流集合变化标志，表示系统中运行的工作流已发生变化
@@ -1074,7 +1162,7 @@ public class Markov {
 	public static void randomlyRemoveAWorkflow() {
 		synchronized (WFInfo) {
 			int numOfWF = WFInfo.size();
-			int WF_ID_idx = new Random().nextInt(numOfWF);
+			int WF_ID_idx = randomTool.nextInt(numOfWF);
 
 			if (null != WFInfo) {
 				old_x_wtk = (ArrayList<String>) var_x_wtk.clone();
@@ -1095,7 +1183,7 @@ public class Markov {
 		// String logStr = "";
 		Markov markov = new Markov();
 		markov.initializeReadData(CandPaths_file, CapLinks_file, Info_of_UAVs_file);
-		WFChangeInfo =  markov.initWFChangeInfo(Info_of_WF_Chaneg);
+		WFChangeInfo = markov.initWFChangeInfo(Info_of_WF_Chaneg);
 		markov.assignTaskToUAVRandomly(WFInfo);
 
 		/*
@@ -1104,14 +1192,6 @@ public class Markov {
 		 */
 
 		markov.updateSystemMetrics();
-		// double performance = markov.global_system_throughput -
-		// markov.global_weighted_RoutingCost
-		// - markov.global_weighted_computeCost;
-		// logStr += "-step:\t" + step_times + "\t-perf:\t" + df.format(performance) +
-		// "\t-thr:\t"
-		// + df.format(markov.global_system_throughput) + "\t-RoutingCost\t"
-		// + df.format(markov.global_weighted_RoutingCost) + "\t-computeCost:\t"
-		// + df.format(markov.global_weighted_computeCost);
 		markov.printCurrentSysInfo();
 		// markov.setTimerForAllTaskFlows(0.0);
 		EnumeratedDistribution<?> actions = markov.setActionForAllTaskFlows();
@@ -1119,6 +1199,19 @@ public class Markov {
 		double current_ts = 0.0;
 
 		while (current_ts < T) {
+			// 根据文件内容执行添加或者移除工作流操作
+			if (!WFChangeInfo.isEmpty()) {
+				Pair<Integer, String> workflowAction = WFChangeInfo.peek();
+				if (workflowAction.getKey().intValue() == (int) current_ts) {
+					if ("in".equals(workflowAction.getValue())) {
+						Markov.addWorkflow();
+					} else if ("out".equals(workflowAction.getValue())) {
+						Markov.randomlyRemoveAWorkflow();
+					}
+					WFChangeInfo.poll();
+				}
+			}
+
 			if (WFInfoChangeFlag) {
 				WFInfoChangeFlag = false;
 				// markov.printCurrentSysInfo();
@@ -1127,9 +1220,8 @@ public class Markov {
 				allMigrationCost += migrationCost;
 				// 更新迁移代价队列
 				Qt = markov.getQueueBlock(Qt, migrationCost, M_avg);
-				// migrationCost = 0.0;
 				queueTime++;
-				markov.updateSystemMetrics();
+				// markov.updateSystemMetrics();
 				actions = markov.setActionForAllTaskFlows();
 				continue;
 			}
@@ -1138,30 +1230,28 @@ public class Markov {
 				// 如果执行的工作流发生了变化，即使有时钟倒计时结束仍然不做切换操作，优先重置所有Action
 				continue;
 			}
-			synchronized (var_x_wtk) {
-				Timer timer = (Timer) actions.sample();
-				int WF_ID = timer.WF_ID;
-				int taskA_ID = timer.taskAID;
-				int taskB_ID = timer.taskBID;
-				int pathID_Old = timer.oldPathID;
-				int pathID_New = timer.newPathID;
-				int UAV_ID_Old = timer.oldUAVID;
-				int UAV_ID_New = timer.newUAVID;
-				List<TasksFlowToReplaceInfo> taskFlows = timer.fakeReplaceReturnResult.taskFlows;
-				markov.replaceTheSelectedNewUAVorPathForAFlow(WF_ID, taskA_ID, taskB_ID, UAV_ID_Old, UAV_ID_New,
-						pathID_Old, pathID_New);
-				for (TasksFlowToReplaceInfo tf : taskFlows) {
-					markov.replaceTheSelectedNewUAVorPathForAFlow(tf.WF_ID, tf.curTaskID, tf.sucTaskID, tf.taskB_UAV_ID,
-							tf.taskB_UAV_ID, tf.oldPathID, tf.newPathID);
-				}
-				// 打印输出性能信息
-				markov.updateSystemMetrics();
-				migrationCost = markov.getMigrationCosts();
-				markov.printCurrentSysInfo();
-				iterationNum++;
-				// markov.printVarX();
-				// markov.printVarY();
+			Timer timer = (Timer) actions.sample();
+			int WF_ID = timer.WF_ID;
+			int taskA_ID = timer.taskAID;
+			int taskB_ID = timer.taskBID;
+			int pathID_Old = timer.oldPathID;
+			int pathID_New = timer.newPathID;
+			int UAV_ID_Old = timer.oldUAVID;
+			int UAV_ID_New = timer.newUAVID;
+			List<TasksFlowToReplaceInfo> taskFlows = timer.fakeReplaceReturnResult.taskFlows;
+			markov.replaceTheSelectedNewUAVorPathForAFlow(WF_ID, taskA_ID, taskB_ID, UAV_ID_Old, UAV_ID_New, pathID_Old,
+					pathID_New);
+			for (TasksFlowToReplaceInfo tf : taskFlows) {
+				markov.replaceTheSelectedNewUAVorPathForAFlow(tf.WF_ID, tf.curTaskID, tf.sucTaskID, tf.taskB_UAV_ID,
+						tf.taskB_UAV_ID, tf.oldPathID, tf.newPathID);
 			}
+			// 打印输出性能信息
+			markov.updateSystemMetrics();
+			migrationCost = markov.getMigrationCosts();
+			markov.printCurrentSysInfo();
+			iterationNum++;
+			// markov.printVarX();
+			// markov.printVarY();
 
 			// markov.addWorkflow();
 			// markov.removeOverdueWorkflow();
@@ -1177,7 +1267,8 @@ public class Markov {
 
 			current_ts += STEP_TO_RUN;
 			step_times++;
-			markov.updateWorkflowsDuration();
+			// 暂时不用
+			// markov.updateWorkflowsDuration();
 
 			// performance = markov.global_system_throughput -
 			// markov.global_weighted_RoutingCost;
