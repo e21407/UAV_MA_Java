@@ -11,6 +11,7 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.math3.distribution.EnumeratedDistribution;
 import org.apache.commons.math3.util.Pair;
@@ -33,13 +34,13 @@ public class Markov {
 	 * pair of UAVs. !!!! SPECIAL-CASE-20161109: EVEN a SW to itself has an
 	 * individual path_ID, 2016-1109!!!!!
 	 */
-	Map<String, List<Integer>> candPathIDSetFor2UAVs = new HashMap<>();
+	static Map<String, List<Integer>> candPathIDSetFor2UAVs = new HashMap<>();
 
 	/**
 	 * {Path_id: pathContent}, e.g., pathContent:["1, 2", "2, 5", "5, 3"]; or EMPTY
 	 * list [].
 	 */
-	Map<Integer, List<String>> pathDatabase = new HashMap<>();
+	static Map<Integer, List<String>> pathDatabase = new HashMap<>();
 
 	/** {"workflow_id, task_id":[Cap]} */
 	// Map<String, Double> taskInfo = new HashMap<>();
@@ -55,19 +56,19 @@ public class Markov {
 	Map<String, Double> capLinks = new HashMap<>();
 
 	/** {Node_ID:CapVal}, the compute capacity of all nodes */
-	Map<Integer, Double> nodeInfo = new HashMap<>();
+	static Map<Integer, Double> nodeInfo = new HashMap<>();
 
 	/** list that record the ID of UAVs */
-	List<Integer> lstUAV = new ArrayList<>();
+	static List<Integer> lstUAV = new ArrayList<>();
 
 	/** list that record the ID of edge server */
-	List<Integer> lstEdgeServer = new ArrayList<>();
+	static List<Integer> lstEdgeServer = new ArrayList<>();
 
 	/** list of UAV's ID which can be assigned task */
-	List<Integer> lstCloudServer = new ArrayList<>();
+	static List<Integer> lstCloudServer = new ArrayList<>();
 
 	/** list that record the ID of cloud server */
-	List<Integer> lstAssignableNode_ID = new ArrayList<>();
+	static List<Integer> lstAssignableNode_ID = new ArrayList<>();
 
 	/**
 	 * {"workflow_ID, task_ID, UAV_ID": int},x_(k)^(w,t) == 1,if task t of workflow
@@ -95,20 +96,20 @@ public class Markov {
 	 * {(u,v): aggregated-TR-in-arc-uv }. This variable record the aggregated
 	 * traffic rate on each UAV link
 	 */
-	// Map<String, Double> Aggregated_TR_in_acrs = new HashMap<>();
+	static // Map<String, Double> Aggregated_TR_in_acrs = new HashMap<>();
 	double global_system_throughput = 0.0;
-	double global_weighted_RoutingCost = 0.0;
-	double global_weighted_computeCost = 0.0;
+	static double global_weighted_RoutingCost = 0.0;
+	static double global_weighted_computeCost = 0.0;
 	final double global_weighted_throughput = 0.0;
-	final double WEIGHT_OF_COMPUTE_COST = ParamInfo.WEIGHT_OF_COMPUTE_COST;
-	final double WEIGHT_OF_ROUTING_COST = ParamInfo.WEIGHT_OF_ROUTING_COST;
-	final double WEIGHT_OF_THROUGHPUT = ParamInfo.WEIGHT_OF_THROUGHPUT;
-	final double weight_a_com = ParamInfo.weight_a_com;
-	final double weight_b_rou = ParamInfo.weight_b_rou;
+	final static double WEIGHT_OF_COMPUTE_COST = ParamInfo.WEIGHT_OF_COMPUTE_COST;
+	final static double WEIGHT_OF_ROUTING_COST = ParamInfo.WEIGHT_OF_ROUTING_COST;
+	final static double WEIGHT_OF_THROUGHPUT = ParamInfo.WEIGHT_OF_THROUGHPUT;
+	final static double weight_a_com = ParamInfo.weight_a_com;
+	final static double weight_b_rou = ParamInfo.weight_b_rou;
 
-	final double UAVLinkCoefficient = ParamInfo.UAVLinkCoefficient;
-	final double EdgeServerLinkCoefficient = ParamInfo.EdgeServerLinkCoefficient;
-	final double CloudServerLinkCoefficient = ParamInfo.CloudServerLinkCoefficient;
+	final static double UAVLinkCoefficient = ParamInfo.UAVLinkCoefficient;
+	final static double EdgeServerLinkCoefficient = ParamInfo.EdgeServerLinkCoefficient;
+	final static double CloudServerLinkCoefficient = ParamInfo.CloudServerLinkCoefficient;
 
 	/** The total running period of system. */
 	static double T = ParamInfo.T;
@@ -121,7 +122,7 @@ public class Markov {
 	 */
 	static double STEP_TO_CHECK_TIMER = STEP_TO_RUN;
 	/** The parameter in the theoretical derivation. */
-	double Beta = ParamInfo.Beta;
+	static double Beta = ParamInfo.Beta;
 	/** The alpha regarding the Markov_Chain. */
 	double Tau = ParamInfo.Tau;
 	static Integer step_times = 1;
@@ -156,7 +157,7 @@ public class Markov {
 
 	static Random randomTool = new Random();
 
-	Map<String, Double> migCostListOf2Node = new HashMap<>();
+	static Map<String, Double> migCostListOf2Node = new HashMap<>();
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -314,7 +315,7 @@ public class Markov {
 							var_x_wtk.add(WF_ID + "," + currTaskID + "," + uID1);
 						if (null == checkWetherATaskHasAssignment(WF_ID, succTaskID))
 							var_x_wtk.add(WF_ID + "," + succTaskID + "," + uID2);
-						OneAPath(pathID, WF_ID, currTaskID, succTaskID);
+						OneAPath(pathID, WF_ID, currTaskID, succTaskID, var_y_wpab);
 						break;
 					}
 				}
@@ -345,7 +346,7 @@ public class Markov {
 		return WFChangeInfo;
 	}
 
-	private List<Integer> findPathIDListForAPairOfUAVs(int uID1, int uID2) {
+	private static List<Integer> findPathIDListForAPairOfUAVs(int uID1, int uID2) {
 		String key = uID1 + "," + uID2;
 		return candPathIDSetFor2UAVs.get(key);
 	}
@@ -366,7 +367,7 @@ public class Markov {
 	// return true;
 	// }
 
-	private double getTheNeedBandwidthOfATaskFlow(int WF_ID, int taskAID, int taskBID) {
+	private static double getTheNeedBandwidthOfATaskFlow(int WF_ID, int taskAID, int taskBID) {
 		double neededBandwidth = -1;
 		// List<Flow> flows = WFInfo.get(WF_ID);
 
@@ -404,7 +405,7 @@ public class Markov {
 		return null;
 	}
 
-	private void OneAPath(int pathID, int WF_ID, int taskAID, int taskBID) {
+	private static void OneAPath(int pathID, int WF_ID, int taskAID, int taskBID, List<String> var_y_wpab) {
 		List<String> pathContent = pathDatabase.get(pathID);
 		double neededBandwidth = getTheNeedBandwidthOfATaskFlow(WF_ID, taskAID, taskBID);
 		// for (String item : pathContent) {
@@ -415,7 +416,7 @@ public class Markov {
 		var_y_wpab.add(WF_ID + "," + pathID + "," + taskAID + "," + taskBID);
 	}
 
-	private void updateSystemMetrics() {
+	private static void updateSystemMetrics() {
 		// logger.debug("计算系统性能指标...");
 		long startTime = System.currentTimeMillis();
 		// moveUnsatisfiedWFFromUAVs();
@@ -504,7 +505,7 @@ public class Markov {
 		logger.debug("updateSystemMetrics耗时：" + durTime.setScale(8) + "s");
 	}
 
-	private double updateSystemMetricsAndReturnSystenObj(List<String> var_y_wpab, List<String> var_x_wtk) {
+	private static double updateSystemMetricsAndReturnSystenObj(List<String> var_y_wpab, List<String> var_x_wtk) {
 		// logger.debug("计算系统性能指标...");
 		long startTime = System.currentTimeMillis();
 		// moveUnsatisfiedWFFromUAVs();
@@ -642,7 +643,7 @@ public class Markov {
 		return resultList;
 	}
 
-	private List<Integer> getListOfSatisfiedWF() {
+	private static List<Integer> getListOfSatisfiedWF() {
 		List<Integer> retSatisfiedWF_ID = new ArrayList<Integer>();
 		boolean flagOfAWF = false;
 		for (Workflow wf : WFInfo) {
@@ -673,7 +674,7 @@ public class Markov {
 		return retSatisfiedWF_ID;
 	}
 
-	private int getTheIUPathIDBetweenTwoTask(int WF_ID, int taskA_ID, int taskB_ID) {
+	private static int getTheIUPathIDBetweenTwoTask(int WF_ID, int taskA_ID, int taskB_ID) {
 		for (String str : var_y_wpab) {
 			String[] sstr = str.split(",");
 			int w = Integer.valueOf(sstr[0]).intValue();
@@ -687,7 +688,7 @@ public class Markov {
 		return -1;
 	}
 
-	private List<String> getTheTaskListAssignedToAUAV(int UAV_ID) {
+	private static List<String> getTheTaskListAssignedToAUAV(int UAV_ID) {
 		List<String> retResult = new ArrayList<>();
 		for (String str : var_x_wtk) {
 			String[] sstr = str.split(",");
@@ -716,38 +717,66 @@ public class Markov {
 
 	}
 
-	private EnumeratedDistribution<?> setActionForAllTaskFlows() {
+	private EnumeratedDistribution<?> setActionForAllTaskFlows(List<String> var_y_wpab, List<String> var_x_wtk) {
 		logger.debug("设置全部action...");
 		long startTime = System.currentTimeMillis();
 
 		List<Pair<Timer, Double>> pmf = new ArrayList<Pair<Timer, Double>>();
 		List<Integer> listOfSatisfiedWF = getListOfSatisfiedWF();
-		for (Integer WF_ID : listOfSatisfiedWF) {
-			// List<Flow> lstTaskFlows = WFInfo.get(WF_ID);
-			ArrayList<Flow> lstTaskFlows = null;
-			for (Workflow wf : WFInfo) {
-				if (wf.getWF_ID() == WF_ID)
-					lstTaskFlows = wf.getFlows();
-			}
-			if (null != lstTaskFlows)
-				for (Flow aFlow : lstTaskFlows) {
-					int taskAID = aFlow.getCurrTask().getTaskId();
-					int taskBID = aFlow.getSuccTask().getTaskId();
-					if (taskBID != 0) {
-						Pair<Timer, Double> action = setActionForATaskFlow(WF_ID, taskAID, taskBID);
-						if (action != null) {
-							pmf.add(action);
-						}
-					}
-				}
+
+		// ---------------------------------------------------
+		List<Integer> subList1 = listOfSatisfiedWF.subList(0, listOfSatisfiedWF.size() / 3);
+		List<Integer> subList2 = listOfSatisfiedWF.subList(listOfSatisfiedWF.size() / 3,
+				listOfSatisfiedWF.size() / 3 * 2);
+		List<Integer> subList3 = listOfSatisfiedWF.subList(listOfSatisfiedWF.size() / 3 * 2, listOfSatisfiedWF.size());
+		CountDownLatch countDownLatch = new CountDownLatch(3);
+		SetActionThread t1 = new SetActionThread(countDownLatch, pmf, subList1, (ArrayList) var_y_wpab,
+				(ArrayList) var_x_wtk);
+		SetActionThread t2 = new SetActionThread(countDownLatch, pmf, subList2, (ArrayList) var_y_wpab,
+				(ArrayList) var_x_wtk);
+		SetActionThread t3 = new SetActionThread(countDownLatch, pmf, subList3, (ArrayList) var_y_wpab,
+				(ArrayList) var_x_wtk);
+
+		t1.start();
+		t2.start();
+		t3.start();
+		try {
+			// 阻塞当前线程，直到倒数计数器倒数到0
+			countDownLatch.await();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
+		// ****************************************************
+		// for (Integer WF_ID : listOfSatisfiedWF) {
+		// // List<Flow> lstTaskFlows = WFInfo.get(WF_ID);
+		// ArrayList<Flow> lstTaskFlows = null;
+		// for (Workflow wf : WFInfo) {
+		// if (wf.getWF_ID() == WF_ID)
+		// lstTaskFlows = wf.getFlows();
+		// }
+		// if (null != lstTaskFlows)
+		// for (Flow aFlow : lstTaskFlows) {
+		// int taskAID = aFlow.getCurrTask().getTaskId();
+		// int taskBID = aFlow.getSuccTask().getTaskId();
+		// if (taskBID != 0) {
+		// Pair<Timer, Double> action = setActionForATaskFlow(WF_ID, taskAID, taskBID,
+		// var_y_wpab,
+		// var_x_wtk);
+		// if (action != null) {
+		// pmf.add(action);
+		// }
+		// }
+		// }
+		// }
+		// ********************************************************
 		long endTime = System.currentTimeMillis();
 		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
 		logger.debug("设置全部action耗时：" + durTime.setScale(8) + "s");
 		return new EnumeratedDistribution(pmf);
 	}
 
-	private Pair<Timer, Double> setActionForATaskFlow(int WF_ID, int taskAID, int taskBID) {
+	static Pair<Timer, Double> setActionForATaskFlow(int WF_ID, int taskAID, int taskBID, ArrayList<String> var_y_wpab,
+			ArrayList<String> var_x_wtk) {
 		long startTime = System.currentTimeMillis();
 
 		int feasibleNewUAV_IDRdm = selectARdmNIU_UAVForTheTask(WF_ID, taskBID);
@@ -765,7 +794,7 @@ public class Markov {
 		updateSystemMetrics();
 		double Xf = getObjValOfConfigurationsInWholeSystem();
 		FakeReplaceReturnResult fakeReplaceResult = fakeReplaceUAVorPathForATaskToReturnEstimatedSysObj(WF_ID, taskAID,
-				taskBID, UAV_IDOld, UAV_IDNew, pathIDOld, pathIDNew);
+				taskBID, UAV_IDOld, UAV_IDNew, pathIDOld, pathIDNew, var_y_wpab, var_x_wtk);
 		double Xf_prime = fakeReplaceResult.estimatedSysObj;
 		double expItem = Math.exp(0.5 * Beta * (Xf_prime - Xf)) + Double.MIN_VALUE/* + 0.00000001 */;
 		// System.out.println("Xf_prime - Xf : " + (Xf_prime - Xf));
@@ -784,7 +813,7 @@ public class Markov {
 		return pair;
 	}
 
-	private int selectARdmNIU_UAVForTheTask(int WF_ID, int taskID) {
+	private static int selectARdmNIU_UAVForTheTask(int WF_ID, int taskID) {
 		int retNIU_UAV_ID = -1;
 		List<Integer> lstNIU_UAV = getListOfNIU_UAV_IDToTheTask(WF_ID, taskID);
 		if (!lstNIU_UAV.isEmpty()) {
@@ -794,7 +823,7 @@ public class Markov {
 		return retNIU_UAV_ID;
 	}
 
-	private List<Integer> getListOfNIU_UAV_IDToTheTask(int WF_ID, int taskID) {
+	private static List<Integer> getListOfNIU_UAV_IDToTheTask(int WF_ID, int taskID) {
 		int IU_UAV_ID = getTheIU_UAV_IDOfATask(WF_ID, taskID);
 		List<Integer> resultList = new ArrayList<>();
 		for (Integer UAV_ID : lstAssignableNode_ID) {
@@ -804,7 +833,7 @@ public class Markov {
 		return resultList;
 	}
 
-	private int getTheIU_UAV_IDOfATask(int WF_ID, int taskID) {
+	private static int getTheIU_UAV_IDOfATask(int WF_ID, int taskID) {
 		long startTime = System.currentTimeMillis();
 		for (String str : var_x_wtk) {
 			String[] sstr = str.split(",");
@@ -818,7 +847,7 @@ public class Markov {
 		return -1;
 	}
 
-	private int selectARdmPathForAPairOfUAVs(int UAV1_ID, int UAV2_ID) {
+	private static int selectARdmPathForAPairOfUAVs(int UAV1_ID, int UAV2_ID) {
 		List<Integer> candPath = findPathIDListForAPairOfUAVs(UAV1_ID, UAV2_ID);
 		if (candPath == null || candPath.isEmpty())
 			return -1;
@@ -826,20 +855,20 @@ public class Markov {
 		return candPath.get(idxTargetPath);
 	}
 
-	private Double getCostOfRdmShortestPathForAPairOfUAVs(int UAV1_ID, int UAV2_ID) {
-//		long startTime = System.currentTimeMillis();
+	private static Double getCostOfRdmShortestPathForAPairOfUAVs(int UAV1_ID, int UAV2_ID) {
+		// long startTime = System.currentTimeMillis();
 		String key = UAV1_ID + "," + UAV2_ID;
 		Double cost = migCostListOf2Node.get(key);
-		if(null != cost) {
+		if (null != cost) {
 			return cost;
-		}else {
+		} else {
 			key = UAV2_ID + "," + UAV1_ID;
 			cost = migCostListOf2Node.get(key);
-			if(null != cost) {
+			if (null != cost) {
 				return cost;
 			}
 		}
-		
+
 		List<Integer> candPath = findPathIDListForAPairOfUAVs(UAV1_ID, UAV2_ID);
 		List<String> resultPath = null;
 		int shortestLength = Integer.MAX_VALUE;
@@ -850,14 +879,16 @@ public class Markov {
 				resultPath = path;
 			}
 		}
-		migCostListOf2Node.put(UAV1_ID + "," + UAV2_ID, (double)resultPath.size());
-//		long endTime = System.currentTimeMillis();
-//		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
-//		logger.debug("getCostOfRdmShortestPathForAPairOfUAVs耗时：" + durTime.setScale(8) + "s " + UAV1_ID + ", " + UAV2_ID);
-		return (double)resultPath.size();
+		migCostListOf2Node.put(UAV1_ID + "," + UAV2_ID, (double) resultPath.size());
+		// long endTime = System.currentTimeMillis();
+		// BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new
+		// BigDecimal(1000));
+		// logger.debug("getCostOfRdmShortestPathForAPairOfUAVs耗时：" +
+		// durTime.setScale(8) + "s " + UAV1_ID + ", " + UAV2_ID);
+		return (double) resultPath.size();
 	}
 
-	private double getObjValOfConfigurationsInWholeSystem() {
+	private static double getObjValOfConfigurationsInWholeSystem() {
 		double xf = global_system_throughput - weight_b_rou * global_weighted_RoutingCost
 				- weight_a_com * global_weighted_computeCost;
 		double queueBlocak = getQueueBlock(Qt, migrationCost, M_avg);
@@ -866,20 +897,24 @@ public class Markov {
 		return V * xf - queueBlocak * (mcost - M_avg);
 	}
 
-	private FakeReplaceReturnResult fakeReplaceUAVorPathForATaskToReturnEstimatedSysObj(int WF_ID, int taskA_ID,
-			int taskB_ID, int UAVID_old, int UAVID_new, int pathID_old, int pathID_new) {
+	private static FakeReplaceReturnResult fakeReplaceUAVorPathForATaskToReturnEstimatedSysObj(int WF_ID, int taskA_ID,
+			int taskB_ID, int UAVID_old, int UAVID_new, int pathID_old, int pathID_new, List<String> var_y_wpab,
+			List<String> var_x_wtk) {
 		// logger.debug("模拟采用下一个方案...");
 		long startTime = System.currentTimeMillis();
 		// 对原方案信息进行拷贝备份
-		ArrayList<String> x_wtk_clone = (ArrayList<String>) var_x_wtk.clone();
-		ArrayList<String> y_wpab_clone = (ArrayList<String>) var_y_wpab.clone();
+		// ArrayList<String> x_wtk_clone = (ArrayList<String>) ((ArrayList<String>)
+		// var_x_wtk).clone();
+		// ArrayList<String> y_wpab_clone = (ArrayList<String>) ((ArrayList<String>)
+		// var_y_wpab).clone();
 
-		replaceTheSelectedNewUAVorPathForAFlow(WF_ID, taskA_ID, taskB_ID, UAVID_old, UAVID_new, pathID_old, pathID_new);
+		replaceTheSelectedNewUAVorPathForAFlow(WF_ID, taskA_ID, taskB_ID, UAVID_old, UAVID_new, pathID_old, pathID_new,
+				var_y_wpab, var_x_wtk);
 		List<Flow> lstAffectedSuccessorTaskFlow = findTheFlowListOfSuccessorTask(WF_ID, taskB_ID);
 		List<TasksFlowToReplaceInfo> successorTaskFlowInfo = prepareFlows(WF_ID, lstAffectedSuccessorTaskFlow);
 		for (TasksFlowToReplaceInfo tfi : successorTaskFlowInfo) {
 			replaceTheSelectedNewUAVorPathForAFlow(WF_ID, tfi.curTaskID, tfi.sucTaskID, tfi.taskB_UAV_ID,
-					tfi.taskB_UAV_ID, tfi.oldPathID, tfi.newPathID);
+					tfi.taskB_UAV_ID, tfi.oldPathID, tfi.newPathID, var_y_wpab, var_x_wtk);
 		}
 
 		List<Flow> lstAffectedPredecessorTaskFlow = findTheFlowListOfPredecessorTask(WF_ID, taskB_ID);
@@ -892,7 +927,7 @@ public class Markov {
 		List<TasksFlowToReplaceInfo> predecessorTaskFlowInfo = prepareFlows(WF_ID, lstAffectedPredecessorTaskFlow);
 		for (TasksFlowToReplaceInfo tfi : predecessorTaskFlowInfo) {
 			replaceTheSelectedNewUAVorPathForAFlow(WF_ID, tfi.curTaskID, tfi.sucTaskID, tfi.taskB_UAV_ID,
-					tfi.taskB_UAV_ID, tfi.oldPathID, tfi.newPathID);
+					tfi.taskB_UAV_ID, tfi.oldPathID, tfi.newPathID, var_y_wpab, var_x_wtk);
 			// System.out.println(
 			// "swap pred-- (" + tfi.curTaskID + "," + tfi.sucTaskID + ") uOld:" +
 			// tfi.taskB_UAV_ID
@@ -904,8 +939,8 @@ public class Markov {
 
 		double estimatedSysObj = updateSystemMetricsAndReturnSystenObj(var_y_wpab, var_x_wtk);
 		// swap back
-		var_y_wpab = y_wpab_clone;
-		var_x_wtk = x_wtk_clone;
+		// var_y_wpab = y_wpab_clone;
+		// var_x_wtk = x_wtk_clone;
 		// 需要吗？
 		// updateSystemMetrics();
 
@@ -921,7 +956,7 @@ public class Markov {
 		return result;
 	}
 
-	private List<TasksFlowToReplaceInfo> prepareFlows(int WF_ID, List<Flow> flows) {
+	private static List<TasksFlowToReplaceInfo> prepareFlows(int WF_ID, List<Flow> flows) {
 		List<TasksFlowToReplaceInfo> result = new ArrayList<>();
 		for (Flow flow : flows) {
 			int taskA_UAV_ID = getTheIU_UAV_IDOfATask(WF_ID, flow.getCurrTask().getTaskId());
@@ -936,8 +971,8 @@ public class Markov {
 		return result;
 	}
 
-	private void replaceTheSelectedNewUAVorPathForAFlow(int WF_ID, int taskA_ID, int taskB_ID, int UAVID_old,
-			int UAVID_new, int pathID_old, int pathID_new) {
+	private static void replaceTheSelectedNewUAVorPathForAFlow(int WF_ID, int taskA_ID, int taskB_ID, int UAVID_old,
+			int UAVID_new, int pathID_old, int pathID_new, List<String> var_y_wpab, List<String> var_x_wtk) {
 		if (UAVID_old != UAVID_new) {
 			String key = WF_ID + "," + taskB_ID + "," + UAVID_old;
 			if (var_x_wtk.contains(key))
@@ -945,12 +980,12 @@ public class Markov {
 			String newKey = WF_ID + "," + taskB_ID + "," + UAVID_new;
 			var_x_wtk.add(newKey);
 		}
-		zeroAPath(pathID_old, WF_ID, taskA_ID, taskB_ID);
-		OneAPath(pathID_new, WF_ID, taskA_ID, taskB_ID);
+		zeroAPath(pathID_old, WF_ID, taskA_ID, taskB_ID, var_y_wpab);
+		OneAPath(pathID_new, WF_ID, taskA_ID, taskB_ID, var_y_wpab);
 
 	}
 
-	private void zeroAPath(int pathID, int WF_ID, int taskA_ID, int taskB_ID) {
+	private static void zeroAPath(int pathID, int WF_ID, int taskA_ID, int taskB_ID, List<String> var_y_wpab) {
 		List<String> pathContent = pathDatabase.get(pathID);
 		double neededBandwidth = getTheNeedBandwidthOfATaskFlow(WF_ID, taskA_ID, taskB_ID);
 		// for (String sedment : pathContent) {
@@ -963,7 +998,7 @@ public class Markov {
 			var_y_wpab.remove(k);
 	}
 
-	private List<Flow> findTheFlowListOfSuccessorTask(int WF_ID, int taskID) {
+	private static List<Flow> findTheFlowListOfSuccessorTask(int WF_ID, int taskID) {
 		List<Flow> resultList = new ArrayList<>();
 		for (Workflow wf : WFInfo) {
 			if (wf.getWF_ID() == WF_ID) {
@@ -978,7 +1013,7 @@ public class Markov {
 		return resultList;
 	}
 
-	private List<Flow> findTheFlowListOfPredecessorTask(int WF_ID, int taskID) {
+	private static List<Flow> findTheFlowListOfPredecessorTask(int WF_ID, int taskID) {
 		List<Flow> resultList = new ArrayList<>();
 		for (Workflow wf : WFInfo) {
 			if (wf.getWF_ID() == WF_ID) {
@@ -1011,7 +1046,7 @@ public class Markov {
 		logger.debug("生成工作流耗时：" + durTime.setScale(4) + "s");
 	}
 
-	private Double getMigrationCosts(List<String> old_x_wtk, List<String> var_x_wtk) {
+	private static Double getMigrationCosts(List<String> old_x_wtk, List<String> var_x_wtk) {
 		long startTime = System.currentTimeMillis();
 
 		if (null == old_x_wtk || old_x_wtk.isEmpty()) {
@@ -1055,7 +1090,7 @@ public class Markov {
 	 *            长期平均迁移代价
 	 * @return t+1时刻的队列代价积存
 	 */
-	private Double getQueueBlock(Double _Qt, Double migrationCost, Double E_avg) {
+	private static Double getQueueBlock(Double _Qt, Double migrationCost, Double E_avg) {
 		double nextBlock = _Qt + migrationCost - E_avg;
 		return nextBlock > 0 ? nextBlock : 0;
 	}
@@ -1152,7 +1187,7 @@ public class Markov {
 		markov.updateSystemMetrics();
 		markov.printCurrentSysInfo();
 		// markov.setTimerForAllTaskFlows(0.0);
-		actions = markov.setActionForAllTaskFlows();
+		actions = markov.setActionForAllTaskFlows((List<String>) var_y_wpab.clone(), (List<String>) var_x_wtk.clone());
 
 		double current_ts = 0.0;
 
@@ -1180,7 +1215,8 @@ public class Markov {
 				Qt = markov.getQueueBlock(Qt, migrationCost, M_avg);
 				queueTime++;
 				// markov.updateSystemMetrics();
-				actions = markov.setActionForAllTaskFlows();
+				actions = markov.setActionForAllTaskFlows((List<String>) var_y_wpab.clone(),
+						(List<String>) var_x_wtk.clone());
 				continue;
 			}
 
@@ -1194,10 +1230,10 @@ public class Markov {
 			int UAV_ID_New = timer.newUAVID;
 			List<TasksFlowToReplaceInfo> taskFlows = timer.fakeReplaceReturnResult.taskFlows;
 			markov.replaceTheSelectedNewUAVorPathForAFlow(WF_ID, taskA_ID, taskB_ID, UAV_ID_Old, UAV_ID_New, pathID_Old,
-					pathID_New);
+					pathID_New, var_y_wpab, var_x_wtk);
 			for (TasksFlowToReplaceInfo tf : taskFlows) {
 				markov.replaceTheSelectedNewUAVorPathForAFlow(tf.WF_ID, tf.curTaskID, tf.sucTaskID, tf.taskB_UAV_ID,
-						tf.taskB_UAV_ID, tf.oldPathID, tf.newPathID);
+						tf.taskB_UAV_ID, tf.oldPathID, tf.newPathID, var_y_wpab, var_x_wtk);
 			}
 			// 打印输出性能信息
 			markov.updateSystemMetrics();
@@ -1206,7 +1242,8 @@ public class Markov {
 			iterationNum++;
 			// markov.printVarX();
 			// markov.printVarY();
-			actions = markov.setActionForAllTaskFlows();
+			actions = markov.setActionForAllTaskFlows((List<String>) var_y_wpab.clone(),
+					(List<String>) var_x_wtk.clone());
 
 			current_ts += STEP_TO_RUN;
 			step_times++;
