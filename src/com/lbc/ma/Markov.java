@@ -87,13 +87,15 @@ public class Markov {
 	 */
 	static ArrayList<String> var_y_wpab = new ArrayList<>();
 
+	static EnumeratedDistribution<?> actions;
+
 	final int Global_PATH_ID_START_COUNTING = 0;
 
 	/**
 	 * {(u,v): aggregated-TR-in-arc-uv }. This variable record the aggregated
 	 * traffic rate on each UAV link
 	 */
-	Map<String, Double> Aggregated_TR_in_acrs = new HashMap<>();
+	// Map<String, Double> Aggregated_TR_in_acrs = new HashMap<>();
 	double global_system_throughput = 0.0;
 	double global_weighted_RoutingCost = 0.0;
 	double global_weighted_computeCost = 0.0;
@@ -151,8 +153,10 @@ public class Markov {
 	static Integer queueTime = -1;
 
 	static Queue<Pair<Integer, String>> WFChangeInfo;
-	
+
 	static Random randomTool = new Random();
+
+	Map<String, Double> migCostListOf2Node = new HashMap<>();
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -225,8 +229,8 @@ public class Markov {
 			String key = uID + "," + vID;
 			if (!capLinks.containsKey(key))
 				capLinks.put(key, capVal);
-			if (!Aggregated_TR_in_acrs.containsKey(key))
-				Aggregated_TR_in_acrs.put(key, 0.0);
+			// if (!Aggregated_TR_in_acrs.containsKey(key))
+			// Aggregated_TR_in_acrs.put(key, 0.0);
 		}
 
 		// _input_Info_of_nodes.txt//////////////////////////////////////
@@ -262,7 +266,7 @@ public class Markov {
 	 * @param WFs
 	 */
 	private void assignTaskToUAVRandomly(ArrayList<Workflow> WFs) {
-		logger.debug("初始化随机分配工作流到系统...");
+		// logger.debug("初始化随机分配工作流到系统...");
 		long startTime = System.currentTimeMillis();
 
 		int numOfUAVs = lstUAV.size();
@@ -300,10 +304,11 @@ public class Markov {
 					if (pathIDList != null) {
 						int idxPath = randomTool.nextInt(pathIDList.size());
 						int pathID = pathIDList.get(idxPath);
-						if (!checkWhetherAPathIsFeasibleToTheTaskSegment(pathID, WF_ID, currTaskID, succTaskID)) {
-							tryNo--;
-							continue;
-						}
+						// if (!checkWhetherAPathIsFeasibleToTheTaskSegment(pathID, WF_ID, currTaskID,
+						// succTaskID)) {
+						// tryNo--;
+						// continue;
+						// }
 						// 执行分配
 						if (null == checkWetherATaskHasAssignment(WF_ID, currTaskID))
 							var_x_wtk.add(WF_ID + "," + currTaskID + "," + uID1);
@@ -321,7 +326,7 @@ public class Markov {
 
 		long endTime = System.currentTimeMillis();
 		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
-		logger.debug("分配耗时：" + durTime.setScale(8) + "s");
+		logger.debug("分配工作流耗时：" + durTime.setScale(8) + "s");
 	}
 
 	private Queue<Pair<Integer, String>> initWFChangeInfo(String filePath) {
@@ -329,11 +334,13 @@ public class Markov {
 		String[] lineOfContent = strFileContent.split("\r\n");
 		Queue<Pair<Integer, String>> WFChangeInfo = new LinkedList<>();
 		for (String line : lineOfContent) {
-			String[] items = line.split("\t");
-			Integer timeSlot = Integer.parseInt(items[1]);
-			String action = items[3];
-			Pair<Integer, String> toAdd = new Pair<Integer, String>(timeSlot, action);
-			WFChangeInfo.add(toAdd);
+			if (!"".equals(line.trim())) {
+				String[] items = line.split("\t");
+				Integer timeSlot = Integer.parseInt(items[1]);
+				String action = items[3];
+				Pair<Integer, String> toAdd = new Pair<Integer, String>(timeSlot, action);
+				WFChangeInfo.add(toAdd);
+			}
 		}
 		return WFChangeInfo;
 	}
@@ -343,36 +350,36 @@ public class Markov {
 		return candPathIDSetFor2UAVs.get(key);
 	}
 
-	private boolean checkWhetherAPathIsFeasibleToTheTaskSegment(int pathID, int WF_ID, int taskAID, int taskBID) {
-		List<String> pathContent = pathDatabase.get(pathID);
-		if (pathContent != null) {
-			double neededBandwidth = getTheNeedBandwidthOfATaskFlow(WF_ID, taskAID, taskBID);
-			for (String item : pathContent) {
-				Double aggregatedTR = Aggregated_TR_in_acrs.get(item);
-				Double linkCap = capLinks.get(item);
-				if (linkCap - aggregatedTR < neededBandwidth)
-					return false;
-			}
-		}
-		return true;
-	}
+	// private boolean checkWhetherAPathIsFeasibleToTheTaskSegment(int pathID, int
+	// WF_ID, int taskAID, int taskBID) {
+	// List<String> pathContent = pathDatabase.get(pathID);
+	// if (pathContent != null) {
+	// double neededBandwidth = getTheNeedBandwidthOfATaskFlow(WF_ID, taskAID,
+	// taskBID);
+	// for (String item : pathContent) {
+	// Double aggregatedTR = Aggregated_TR_in_acrs.get(item);
+	// Double linkCap = capLinks.get(item);
+	// if (linkCap - aggregatedTR < neededBandwidth)
+	// return false;
+	// }
+	// }
+	// return true;
+	// }
 
 	private double getTheNeedBandwidthOfATaskFlow(int WF_ID, int taskAID, int taskBID) {
 		double neededBandwidth = -1;
 		// List<Flow> flows = WFInfo.get(WF_ID);
 
 		ArrayList<Flow> flows = null;
-		synchronized (WFInfo) {
-			for (Workflow wf : WFInfo) {
-				if (wf.getWF_ID() == WF_ID)
-					flows = wf.getFlows();
-			}
-			for (Flow flow : flows) {
-				if (flow.getCurrTask().getTaskId().intValue() == taskAID
-						&& flow.getSuccTask().getTaskId().intValue() == taskBID) {
-					neededBandwidth = flow.getNeededBandwidth().doubleValue();
-					break;
-				}
+		for (Workflow wf : WFInfo) {
+			if (wf.getWF_ID() == WF_ID)
+				flows = wf.getFlows();
+		}
+		for (Flow flow : flows) {
+			if (flow.getCurrTask().getTaskId().intValue() == taskAID
+					&& flow.getSuccTask().getTaskId().intValue() == taskBID) {
+				neededBandwidth = flow.getNeededBandwidth().doubleValue();
+				break;
 			}
 		}
 
@@ -400,18 +407,18 @@ public class Markov {
 	private void OneAPath(int pathID, int WF_ID, int taskAID, int taskBID) {
 		List<String> pathContent = pathDatabase.get(pathID);
 		double neededBandwidth = getTheNeedBandwidthOfATaskFlow(WF_ID, taskAID, taskBID);
-		for (String item : pathContent) {
-			Double TR = Aggregated_TR_in_acrs.get(item);
-			TR += neededBandwidth;
-			Aggregated_TR_in_acrs.replace(item, TR);
-		}
+		// for (String item : pathContent) {
+		// Double TR = Aggregated_TR_in_acrs.get(item);
+		// TR += neededBandwidth;
+		// Aggregated_TR_in_acrs.replace(item, TR);
+		// }
 		var_y_wpab.add(WF_ID + "," + pathID + "," + taskAID + "," + taskBID);
 	}
 
 	private void updateSystemMetrics() {
-		logger.debug("计算系统性能指标...");
+		// logger.debug("计算系统性能指标...");
 		long startTime = System.currentTimeMillis();
-		moveUnsatisfiedWFFromUAVs();
+		// moveUnsatisfiedWFFromUAVs();
 		double system_throughput = 0.0;
 		double routingCost = 0.0;
 		double computeCost = 0.0;
@@ -419,36 +426,34 @@ public class Markov {
 		List<Integer> listOfSatisfiedWF_ID = getListOfSatisfiedWF();
 		for (Integer WF_ID : listOfSatisfiedWF_ID) {
 			// List<Flow> flows = WFInfo.get(WF_ID);
-			synchronized (WFInfo) {
-				ArrayList<Flow> flows = null;
-				for (Workflow wf : WFInfo) {
-					if (wf.getWF_ID() == WF_ID)
-						flows = wf.getFlows();
-				}
-				if (flows != null) {
-					for (Flow aFlow : flows) {
-						int taskAID = aFlow.getCurrTask().getTaskId();
-						int taskBID = aFlow.getSuccTask().getTaskId();
-						double bandwidth = aFlow.getNeededBandwidth();
-						system_throughput += bandwidth;
-						int IUPathID = getTheIUPathIDBetweenTwoTask(WF_ID, taskAID, taskBID);
-						if (IUPathID != -1) {
-							List<String> paths = pathDatabase.get(IUPathID);
-							for (String string : paths) {
-								String[] sstr = string.split(",");
-								int UAV1 = Integer.valueOf(sstr[0]);
-								int UAV2 = Integer.valueOf(sstr[1]);
-								if ((lstEdgeServer.contains(UAV2) && lstEdgeServer.contains(UAV1))
-										|| (lstEdgeServer.contains(UAV1) && lstUAV.contains(UAV2))
-										|| (lstEdgeServer.contains(UAV2) && lstUAV.contains(UAV1))) {
-									routingCost += 1 * EdgeServerLinkCoefficient;
-								} else if ((lstCloudServer.contains(UAV2) && lstCloudServer.contains(UAV1))
-										|| (lstCloudServer.contains(UAV1) && lstEdgeServer.contains(UAV2))
-										|| (lstCloudServer.contains(UAV2) && lstEdgeServer.contains(UAV1))) {
-									routingCost += 1 * CloudServerLinkCoefficient;
-								} else
-									routingCost += 1 * UAVLinkCoefficient;
-							}
+			ArrayList<Flow> flows = null;
+			for (Workflow wf : WFInfo) {
+				if (wf.getWF_ID() == WF_ID)
+					flows = wf.getFlows();
+			}
+			if (flows != null) {
+				for (Flow aFlow : flows) {
+					int taskAID = aFlow.getCurrTask().getTaskId();
+					int taskBID = aFlow.getSuccTask().getTaskId();
+					double bandwidth = aFlow.getNeededBandwidth();
+					system_throughput += bandwidth;
+					int IUPathID = getTheIUPathIDBetweenTwoTask(WF_ID, taskAID, taskBID);
+					if (IUPathID != -1) {
+						List<String> paths = pathDatabase.get(IUPathID);
+						for (String string : paths) {
+							String[] sstr = string.split(",");
+							int UAV1 = Integer.valueOf(sstr[0]);
+							int UAV2 = Integer.valueOf(sstr[1]);
+							if ((lstEdgeServer.contains(UAV2) && lstEdgeServer.contains(UAV1))
+									|| (lstEdgeServer.contains(UAV1) && lstUAV.contains(UAV2))
+									|| (lstEdgeServer.contains(UAV2) && lstUAV.contains(UAV1))) {
+								routingCost += 1 * EdgeServerLinkCoefficient;
+							} else if ((lstCloudServer.contains(UAV2) && lstCloudServer.contains(UAV1))
+									|| (lstCloudServer.contains(UAV1) && lstEdgeServer.contains(UAV2))
+									|| (lstCloudServer.contains(UAV2) && lstEdgeServer.contains(UAV1))) {
+								routingCost += 1 * CloudServerLinkCoefficient;
+							} else
+								routingCost += 1 * UAVLinkCoefficient;
 						}
 					}
 				}
@@ -464,22 +469,20 @@ public class Markov {
 				String[] strs = string.split(",");
 				Integer WF_ID = Integer.valueOf(strs[0]);
 				Integer task_id = Integer.valueOf(strs[1]);
-				FindTask: synchronized (WFInfo) {
-					for (Workflow wf : WFInfo) {
-						if (wf.getWF_ID() == WF_ID) {
-							for (Flow f : wf.getFlows()) {
-								if (task_id == f.getCurrTask().getTaskId()) {
-									// totalCapOfAUAV += f.getCurrTask().getNeededResource() *
-									// taskNumAssignedToANode;
-									totalCapOfAUAV += f.getCurrTask().getNeededResource();
-									break FindTask;
-								}
-								if (task_id == f.getSuccTask().getTaskId()) {
-									// totalCapOfAUAV += f.getSuccTask().getNeededResource() *
-									// taskNumAssignedToANode;
-									totalCapOfAUAV += f.getSuccTask().getNeededResource();
-									break FindTask;
-								}
+				FindTask: for (Workflow wf : WFInfo) {
+					if (wf.getWF_ID() == WF_ID) {
+						for (Flow f : wf.getFlows()) {
+							if (task_id == f.getCurrTask().getTaskId()) {
+								// totalCapOfAUAV += f.getCurrTask().getNeededResource() *
+								// taskNumAssignedToANode;
+								totalCapOfAUAV += f.getCurrTask().getNeededResource();
+								break FindTask;
+							}
+							if (task_id == f.getSuccTask().getTaskId()) {
+								// totalCapOfAUAV += f.getSuccTask().getNeededResource() *
+								// taskNumAssignedToANode;
+								totalCapOfAUAV += f.getSuccTask().getNeededResource();
+								break FindTask;
 							}
 						}
 					}
@@ -498,13 +501,13 @@ public class Markov {
 
 		long endTime = System.currentTimeMillis();
 		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
-		logger.debug("计算系统性能指标耗时：" + durTime.setScale(8) + "s");
+		logger.debug("updateSystemMetrics耗时：" + durTime.setScale(8) + "s");
 	}
 
-	private void updateSystemMetrics(List<String> var_y_wpab, List<String> var_x_wtk) {
-		logger.debug("计算系统性能指标...");
+	private double updateSystemMetricsAndReturnSystenObj(List<String> var_y_wpab, List<String> var_x_wtk) {
+		// logger.debug("计算系统性能指标...");
 		long startTime = System.currentTimeMillis();
-		moveUnsatisfiedWFFromUAVs();
+		// moveUnsatisfiedWFFromUAVs();
 		double system_throughput = 0.0;
 		double routingCost = 0.0;
 		double computeCost = 0.0;
@@ -512,49 +515,47 @@ public class Markov {
 		List<Integer> listOfSatisfiedWF_ID = getListOfSatisfiedWF();
 		for (Integer WF_ID : listOfSatisfiedWF_ID) {
 			// List<Flow> flows = WFInfo.get(WF_ID);
-			synchronized (WFInfo) {
-				ArrayList<Flow> flows = null;
-				for (Workflow wf : WFInfo) {
-					if (wf.getWF_ID() == WF_ID)
-						flows = wf.getFlows();
-				}
-				if (flows != null) {
-					for (Flow aFlow : flows) {
-						int taskAID = aFlow.getCurrTask().getTaskId();
-						int taskBID = aFlow.getSuccTask().getTaskId();
-						double bandwidth = aFlow.getNeededBandwidth();
-						system_throughput += bandwidth;
-						int IUPathID = -1;
-						// ----getTheIUPathIDBetweenTwoTask(WF_ID, taskAID, taskBID);---
-						for (String str : var_y_wpab) {
-							String[] sstr = str.split(",");
-							int w = Integer.valueOf(sstr[0]).intValue();
-							int a = Integer.valueOf(sstr[2]).intValue();
-							int b = Integer.valueOf(sstr[3]).intValue();
-							if (w == WF_ID && a == taskAID && b == taskBID) {
-								int pathID = Integer.valueOf(sstr[1]).intValue();
-								IUPathID = pathID;
-								break;
-							}
+			ArrayList<Flow> flows = null;
+			for (Workflow wf : WFInfo) {
+				if (wf.getWF_ID() == WF_ID)
+					flows = wf.getFlows();
+			}
+			if (flows != null) {
+				for (Flow aFlow : flows) {
+					int taskAID = aFlow.getCurrTask().getTaskId();
+					int taskBID = aFlow.getSuccTask().getTaskId();
+					double bandwidth = aFlow.getNeededBandwidth();
+					system_throughput += bandwidth;
+					int IUPathID = -1;
+					// ----getTheIUPathIDBetweenTwoTask(WF_ID, taskAID, taskBID);---
+					for (String str : var_y_wpab) {
+						String[] sstr = str.split(",");
+						int w = Integer.valueOf(sstr[0]).intValue();
+						int a = Integer.valueOf(sstr[2]).intValue();
+						int b = Integer.valueOf(sstr[3]).intValue();
+						if (w == WF_ID && a == taskAID && b == taskBID) {
+							int pathID = Integer.valueOf(sstr[1]).intValue();
+							IUPathID = pathID;
+							break;
 						}
-						// -------------------------------------------------------------
-						if (IUPathID != -1) {
-							List<String> paths = pathDatabase.get(IUPathID);
-							for (String string : paths) {
-								String[] sstr = string.split(",");
-								int UAV1 = Integer.valueOf(sstr[0]);
-								int UAV2 = Integer.valueOf(sstr[1]);
-								if ((lstEdgeServer.contains(UAV2) && lstEdgeServer.contains(UAV1))
-										|| (lstEdgeServer.contains(UAV1) && lstUAV.contains(UAV2))
-										|| (lstEdgeServer.contains(UAV2) && lstUAV.contains(UAV1))) {
-									routingCost += 1 * EdgeServerLinkCoefficient;
-								} else if ((lstCloudServer.contains(UAV2) && lstCloudServer.contains(UAV1))
-										|| (lstCloudServer.contains(UAV1) && lstEdgeServer.contains(UAV2))
-										|| (lstCloudServer.contains(UAV2) && lstEdgeServer.contains(UAV1))) {
-									routingCost += 1 * CloudServerLinkCoefficient;
-								} else
-									routingCost += 1 * UAVLinkCoefficient;
-							}
+					}
+					// -------------------------------------------------------------
+					if (IUPathID != -1) {
+						List<String> paths = pathDatabase.get(IUPathID);
+						for (String string : paths) {
+							String[] sstr = string.split(",");
+							int UAV1 = Integer.valueOf(sstr[0]);
+							int UAV2 = Integer.valueOf(sstr[1]);
+							if ((lstEdgeServer.contains(UAV2) && lstEdgeServer.contains(UAV1))
+									|| (lstEdgeServer.contains(UAV1) && lstUAV.contains(UAV2))
+									|| (lstEdgeServer.contains(UAV2) && lstUAV.contains(UAV1))) {
+								routingCost += 1 * EdgeServerLinkCoefficient;
+							} else if ((lstCloudServer.contains(UAV2) && lstCloudServer.contains(UAV1))
+									|| (lstCloudServer.contains(UAV1) && lstEdgeServer.contains(UAV2))
+									|| (lstCloudServer.contains(UAV2) && lstEdgeServer.contains(UAV1))) {
+								routingCost += 1 * CloudServerLinkCoefficient;
+							} else
+								routingCost += 1 * UAVLinkCoefficient;
 						}
 					}
 				}
@@ -579,18 +580,16 @@ public class Markov {
 				String[] strs = string.split(",");
 				Integer WF_ID = Integer.valueOf(strs[0]);
 				Integer task_id = Integer.valueOf(strs[1]);
-				FindTask: synchronized (WFInfo) {
-					for (Workflow wf : WFInfo) {
-						if (wf.getWF_ID() == WF_ID) {
-							for (Flow f : wf.getFlows()) {
-								if (task_id == f.getCurrTask().getTaskId()) {
-									totalCapOfAUAV += f.getCurrTask().getNeededResource();
-									break FindTask;
-								}
-								if (task_id == f.getSuccTask().getTaskId()) {
-									totalCapOfAUAV += f.getSuccTask().getNeededResource();
-									break FindTask;
-								}
+				FindTask: for (Workflow wf : WFInfo) {
+					if (wf.getWF_ID() == WF_ID) {
+						for (Flow f : wf.getFlows()) {
+							if (task_id == f.getCurrTask().getTaskId()) {
+								totalCapOfAUAV += f.getCurrTask().getNeededResource();
+								break FindTask;
+							}
+							if (task_id == f.getSuccTask().getTaskId()) {
+								totalCapOfAUAV += f.getSuccTask().getNeededResource();
+								break FindTask;
 							}
 						}
 					}
@@ -603,40 +602,40 @@ public class Markov {
 		double weighted_routing_cost = WEIGHT_OF_ROUTING_COST * routingCost;
 		double weighted_compute_cost = WEIGHT_OF_COMPUTE_COST * computeCost;
 		double weighted_throughput = WEIGHT_OF_THROUGHPUT * system_throughput;
-		global_system_throughput = weighted_throughput;
-		global_weighted_RoutingCost = weighted_routing_cost;
-		global_weighted_computeCost = weighted_compute_cost;
+
+		double xf = weighted_throughput - weight_b_rou * weighted_routing_cost - weight_a_com * weighted_compute_cost;
+		double queueBlocak = getQueueBlock(Qt, migrationCost, M_avg);
+		double mcost = getMigrationCosts(old_x_wtk, var_x_wtk);
 
 		long endTime = System.currentTimeMillis();
 		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
-		logger.debug("计算系统性能指标耗时：" + durTime.setScale(8) + "s");
+		logger.debug("updateSystemMetricsAndReturnSystenObj耗时：" + durTime.setScale(8) + "s");
+		return V * xf - queueBlocak * (mcost - M_avg);
 	}
 
-	private void moveUnsatisfiedWFFromUAVs() {
-		ArrayList<Workflow> listOfUnsatisfiedWF = getListOfUnsatisfiedWF();
-		for (Workflow workflow : listOfUnsatisfiedWF) {
-			int WF_ID = workflow.getWF_ID();
-			List<String> toRemove = new ArrayList<String>();
-			for (String astr : var_x_wtk) {
-				String[] sstr = astr.split(",");
-				if (WF_ID == Integer.valueOf(sstr[0]).intValue()) {
-					toRemove.add(astr);
-				}
-			}
-			for (String string : toRemove) {
-				var_x_wtk.remove(string);
-			}
-		}
-	}
+	// private void moveUnsatisfiedWFFromUAVs() {
+	// ArrayList<Workflow> listOfUnsatisfiedWF = getListOfUnsatisfiedWF();
+	// for (Workflow workflow : listOfUnsatisfiedWF) {
+	// int WF_ID = workflow.getWF_ID();
+	// List<String> toRemove = new ArrayList<String>();
+	// for (String astr : var_x_wtk) {
+	// String[] sstr = astr.split(",");
+	// if (WF_ID == Integer.valueOf(sstr[0]).intValue()) {
+	// toRemove.add(astr);
+	// }
+	// }
+	// for (String string : toRemove) {
+	// var_x_wtk.remove(string);
+	// }
+	// }
+	// }
 
 	private ArrayList<Workflow> getListOfUnsatisfiedWF() {
 		ArrayList<Workflow> resultList = new ArrayList<>();
 		List<Integer> listOfSatisfiedWF = getListOfSatisfiedWF();
-		synchronized (WFInfo) {
-			for (Workflow wf : WFInfo) {
-				if (!listOfSatisfiedWF.contains(wf.getWF_ID())) {
-					resultList.add(wf);
-				}
+		for (Workflow wf : WFInfo) {
+			if (!listOfSatisfiedWF.contains(wf.getWF_ID())) {
+				resultList.add(wf);
 			}
 		}
 
@@ -646,31 +645,28 @@ public class Markov {
 	private List<Integer> getListOfSatisfiedWF() {
 		List<Integer> retSatisfiedWF_ID = new ArrayList<Integer>();
 		boolean flagOfAWF = false;
-		synchronized (WFInfo) {
-			for (Workflow wf : WFInfo) {
-				flagOfAWF = true;
-				int WF_ID = wf.getWF_ID();
-				for (Flow aFlow : wf.getFlows()) {
-					boolean flagOfAFlow = false;
-					for (String str : var_y_wpab) {
-						String[] items = str.split(",");
-						int w = Integer.valueOf(items[0]);
-						int a = Integer.valueOf(items[2]);
-						int b = Integer.valueOf(items[3]);
-						if (w == WF_ID && a == aFlow.getCurrTask().getTaskId()
-								&& b == aFlow.getSuccTask().getTaskId()) {
-							flagOfAFlow = true;
-							break;
-						}
-					}
-					if (!flagOfAFlow) {
-						flagOfAWF = false;
+		for (Workflow wf : WFInfo) {
+			flagOfAWF = true;
+			int WF_ID = wf.getWF_ID();
+			for (Flow aFlow : wf.getFlows()) {
+				boolean flagOfAFlow = false;
+				for (String str : var_y_wpab) {
+					String[] items = str.split(",");
+					int w = Integer.valueOf(items[0]);
+					int a = Integer.valueOf(items[2]);
+					int b = Integer.valueOf(items[3]);
+					if (w == WF_ID && a == aFlow.getCurrTask().getTaskId() && b == aFlow.getSuccTask().getTaskId()) {
+						flagOfAFlow = true;
 						break;
 					}
 				}
-				if (flagOfAWF) {
-					retSatisfiedWF_ID.add(WF_ID);
+				if (!flagOfAFlow) {
+					flagOfAWF = false;
+					break;
 				}
+			}
+			if (flagOfAWF) {
+				retSatisfiedWF_ID.add(WF_ID);
 			}
 		}
 
@@ -721,41 +717,37 @@ public class Markov {
 	}
 
 	private EnumeratedDistribution<?> setActionForAllTaskFlows() {
-		logger.debug("设置全部时钟...");
+		logger.debug("设置全部action...");
 		long startTime = System.currentTimeMillis();
 
 		List<Pair<Timer, Double>> pmf = new ArrayList<Pair<Timer, Double>>();
 		List<Integer> listOfSatisfiedWF = getListOfSatisfiedWF();
 		for (Integer WF_ID : listOfSatisfiedWF) {
 			// List<Flow> lstTaskFlows = WFInfo.get(WF_ID);
-			synchronized (WFInfo) {
-				ArrayList<Flow> lstTaskFlows = null;
-				for (Workflow wf : WFInfo) {
-					if (wf.getWF_ID() == WF_ID)
-						lstTaskFlows = wf.getFlows();
-				}
-				if (null != lstTaskFlows)
-					for (Flow aFlow : lstTaskFlows) {
-						int taskAID = aFlow.getCurrTask().getTaskId();
-						int taskBID = aFlow.getSuccTask().getTaskId();
-						if (taskBID != 0) {
-							Pair<Timer, Double> action = setActionForATaskFlow(WF_ID, taskAID, taskBID);
-							if (action != null) {
-								pmf.add(action);
-							}
+			ArrayList<Flow> lstTaskFlows = null;
+			for (Workflow wf : WFInfo) {
+				if (wf.getWF_ID() == WF_ID)
+					lstTaskFlows = wf.getFlows();
+			}
+			if (null != lstTaskFlows)
+				for (Flow aFlow : lstTaskFlows) {
+					int taskAID = aFlow.getCurrTask().getTaskId();
+					int taskBID = aFlow.getSuccTask().getTaskId();
+					if (taskBID != 0) {
+						Pair<Timer, Double> action = setActionForATaskFlow(WF_ID, taskAID, taskBID);
+						if (action != null) {
+							pmf.add(action);
 						}
 					}
-			}
-
+				}
 		}
 		long endTime = System.currentTimeMillis();
 		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
-		logger.debug("设置全部时钟耗时：" + durTime.setScale(8) + "s");
+		logger.debug("设置全部action耗时：" + durTime.setScale(8) + "s");
 		return new EnumeratedDistribution(pmf);
 	}
 
 	private Pair<Timer, Double> setActionForATaskFlow(int WF_ID, int taskAID, int taskBID) {
-		logger.debug("设置单个时钟...");
 		long startTime = System.currentTimeMillis();
 
 		int feasibleNewUAV_IDRdm = selectARdmNIU_UAVForTheTask(WF_ID, taskBID);
@@ -767,8 +759,9 @@ public class Markov {
 		int pathIDOld = getTheIUPathIDBetweenTwoTask(WF_ID, taskAID, taskBID);
 		int UAV_IDOfTaskA = getTheIU_UAV_IDOfATask(WF_ID, taskAID);
 		int pathIDNew = selectARdmPathForAPairOfUAVs(UAV_IDOfTaskA, UAV_IDNew);
-		if (!checkWhetherAPathIsFeasibleToTheTaskSegment(pathIDNew, WF_ID, taskAID, taskBID))
-			return null;
+		// if (!checkWhetherAPathIsFeasibleToTheTaskSegment(pathIDNew, WF_ID, taskAID,
+		// taskBID))
+		// return null;
 		updateSystemMetrics();
 		double Xf = getObjValOfConfigurationsInWholeSystem();
 		FakeReplaceReturnResult fakeReplaceResult = fakeReplaceUAVorPathForATaskToReturnEstimatedSysObj(WF_ID, taskAID,
@@ -787,7 +780,7 @@ public class Markov {
 		Pair<Timer, Double> pair = new Pair<Timer, Double>(timer, expItem);
 		long endTime = System.currentTimeMillis();
 		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
-		logger.debug("设置单个时钟耗时：" + durTime.setScale(8) + "s");
+		logger.debug("设置单个action耗时：" + durTime.setScale(8) + "s");
 		return pair;
 	}
 
@@ -812,6 +805,7 @@ public class Markov {
 	}
 
 	private int getTheIU_UAV_IDOfATask(int WF_ID, int taskID) {
+		long startTime = System.currentTimeMillis();
 		for (String str : var_x_wtk) {
 			String[] sstr = str.split(",");
 			int w = Integer.valueOf(sstr[0]);
@@ -832,56 +826,60 @@ public class Markov {
 		return candPath.get(idxTargetPath);
 	}
 
-	private int selectAShortestRdmPathForAPairOfUAVs(int UAV1_ID, int UAV2_ID) {
+	private Double getCostOfRdmShortestPathForAPairOfUAVs(int UAV1_ID, int UAV2_ID) {
+//		long startTime = System.currentTimeMillis();
+		String key = UAV1_ID + "," + UAV2_ID;
+		Double cost = migCostListOf2Node.get(key);
+		if(null != cost) {
+			return cost;
+		}else {
+			key = UAV2_ID + "," + UAV1_ID;
+			cost = migCostListOf2Node.get(key);
+			if(null != cost) {
+				return cost;
+			}
+		}
+		
 		List<Integer> candPath = findPathIDListForAPairOfUAVs(UAV1_ID, UAV2_ID);
-		if (candPath == null || candPath.isEmpty())
-			return -1;
-		int result = -1;
+		List<String> resultPath = null;
 		int shortestLength = Integer.MAX_VALUE;
 		for (Integer pathID : candPath) {
 			List<String> path = pathDatabase.get(pathID);
 			if (shortestLength > path.size()) {
 				shortestLength = path.size();
-				result = pathID;
+				resultPath = path;
 			}
 		}
-		return result;
+		migCostListOf2Node.put(UAV1_ID + "," + UAV2_ID, (double)resultPath.size());
+//		long endTime = System.currentTimeMillis();
+//		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
+//		logger.debug("getCostOfRdmShortestPathForAPairOfUAVs耗时：" + durTime.setScale(8) + "s " + UAV1_ID + ", " + UAV2_ID);
+		return (double)resultPath.size();
 	}
 
 	private double getObjValOfConfigurationsInWholeSystem() {
 		double xf = global_system_throughput - weight_b_rou * global_weighted_RoutingCost
 				- weight_a_com * global_weighted_computeCost;
 		double queueBlocak = getQueueBlock(Qt, migrationCost, M_avg);
-		double mcost = getMigrationCosts();
+		double mcost = getMigrationCosts(old_x_wtk, var_x_wtk);
 		// return V * xf - queueBlocak * migrationCost;
 		return V * xf - queueBlocak * (mcost - M_avg);
 	}
 
 	private FakeReplaceReturnResult fakeReplaceUAVorPathForATaskToReturnEstimatedSysObj(int WF_ID, int taskA_ID,
 			int taskB_ID, int UAVID_old, int UAVID_new, int pathID_old, int pathID_new) {
-		logger.debug("模拟采用下一个方案...");
+		// logger.debug("模拟采用下一个方案...");
 		long startTime = System.currentTimeMillis();
 		// 对原方案信息进行拷贝备份
 		ArrayList<String> x_wtk_clone = (ArrayList<String>) var_x_wtk.clone();
 		ArrayList<String> y_wpab_clone = (ArrayList<String>) var_y_wpab.clone();
+
 		replaceTheSelectedNewUAVorPathForAFlow(WF_ID, taskA_ID, taskB_ID, UAVID_old, UAVID_new, pathID_old, pathID_new);
-		// System.out.println("swap norm-- (" + taskA_ID + "," + taskB_ID + ") uOld:" +
-		// UAVID_old + " uNew:"
-		// + UAVID_new + " pOld:" + pathID_old + " pNew:" + pathID_new);
-		// printVarX();
-		// printVarY();
 		List<Flow> lstAffectedSuccessorTaskFlow = findTheFlowListOfSuccessorTask(WF_ID, taskB_ID);
 		List<TasksFlowToReplaceInfo> successorTaskFlowInfo = prepareFlows(WF_ID, lstAffectedSuccessorTaskFlow);
 		for (TasksFlowToReplaceInfo tfi : successorTaskFlowInfo) {
 			replaceTheSelectedNewUAVorPathForAFlow(WF_ID, tfi.curTaskID, tfi.sucTaskID, tfi.taskB_UAV_ID,
 					tfi.taskB_UAV_ID, tfi.oldPathID, tfi.newPathID);
-			// System.out.println(
-			// "swap succ-- (" + tfi.curTaskID + "," + tfi.sucTaskID + ") uOld:" +
-			// tfi.taskB_UAV_ID
-			// + " uNew:" + tfi.taskB_UAV_ID + " pOld:" + tfi.oldPathID + " pNew:" +
-			// tfi.newPathID);
-			// printVarX();
-			// printVarY();
 		}
 
 		List<Flow> lstAffectedPredecessorTaskFlow = findTheFlowListOfPredecessorTask(WF_ID, taskB_ID);
@@ -904,39 +902,10 @@ public class Markov {
 			// printVarY();
 		}
 
-		updateSystemMetrics();
-		double estimatedSysObj = getObjValOfConfigurationsInWholeSystem();
+		double estimatedSysObj = updateSystemMetricsAndReturnSystenObj(var_y_wpab, var_x_wtk);
 		// swap back
-		replaceTheSelectedNewUAVorPathForAFlow(WF_ID, taskA_ID, taskB_ID, UAVID_new, UAVID_old, pathID_new, pathID_old);
-		// System.out.println("swap back-- (" + taskA_ID + "," + taskB_ID + ") uOld:" +
-		// UAVID_old + " uNew:"
-		// + UAVID_new + " pOld:" + pathID_new + " pNew:" + pathID_old);
-		// printVarX();
-		// printVarY();
-
-		for (TasksFlowToReplaceInfo tfi : successorTaskFlowInfo) {
-			replaceTheSelectedNewUAVorPathForAFlow(WF_ID, tfi.curTaskID, tfi.sucTaskID, tfi.taskB_UAV_ID,
-					tfi.taskB_UAV_ID, tfi.newPathID, tfi.oldPathID);
-			// System.out.println(
-			// "back succ-- (" + tfi.curTaskID + "," + tfi.sucTaskID + ") uOld:" +
-			// tfi.taskB_UAV_ID
-			// + " uNew:" + tfi.taskB_UAV_ID + " pOld:" + tfi.newPathID + " pNew:" +
-			// tfi.oldPathID);
-			// printVarX();
-			// printVarY();
-		}
-
-		for (TasksFlowToReplaceInfo tfi : predecessorTaskFlowInfo) {
-			replaceTheSelectedNewUAVorPathForAFlow(WF_ID, tfi.curTaskID, tfi.sucTaskID, tfi.taskB_UAV_ID,
-					tfi.taskB_UAV_ID, tfi.newPathID, tfi.oldPathID);
-			// System.out.println(
-			// "back pred-- (" + tfi.curTaskID + "," + tfi.sucTaskID + ") uOld:" +
-			// tfi.taskB_UAV_ID
-			// + " uNew:" + tfi.taskB_UAV_ID + " pOld:" + tfi.newPathID + " pNew:" +
-			// tfi.oldPathID);
-			// printVarX();
-			// printVarY();
-		}
+		var_y_wpab = y_wpab_clone;
+		var_x_wtk = x_wtk_clone;
 		// 需要吗？
 		// updateSystemMetrics();
 
@@ -948,7 +917,7 @@ public class Markov {
 
 		long endTime = System.currentTimeMillis();
 		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
-		logger.debug("模拟采用下一个方案耗时：" + durTime.setScale(8) + "s");
+		logger.debug("fakeReplaceUAVorPathForATaskToReturnEstimatedSysObj耗时：" + durTime.setScale(8) + "s");
 		return result;
 	}
 
@@ -984,11 +953,11 @@ public class Markov {
 	private void zeroAPath(int pathID, int WF_ID, int taskA_ID, int taskB_ID) {
 		List<String> pathContent = pathDatabase.get(pathID);
 		double neededBandwidth = getTheNeedBandwidthOfATaskFlow(WF_ID, taskA_ID, taskB_ID);
-		for (String sedment : pathContent) {
-			Double TR = Aggregated_TR_in_acrs.get(sedment);
-			TR -= neededBandwidth;
-			Aggregated_TR_in_acrs.put(sedment, TR);
-		}
+		// for (String sedment : pathContent) {
+		// Double TR = Aggregated_TR_in_acrs.get(sedment);
+		// TR -= neededBandwidth;
+		// Aggregated_TR_in_acrs.put(sedment, TR);
+		// }
 		String k = WF_ID + "," + pathID + "," + taskA_ID + "," + taskB_ID;
 		if (var_y_wpab.contains(k))
 			var_y_wpab.remove(k);
@@ -996,14 +965,12 @@ public class Markov {
 
 	private List<Flow> findTheFlowListOfSuccessorTask(int WF_ID, int taskID) {
 		List<Flow> resultList = new ArrayList<>();
-		synchronized (WFInfo) {
-			for (Workflow wf : WFInfo) {
-				if (wf.getWF_ID() == WF_ID) {
-					ArrayList<Flow> flows = wf.getFlows();
-					for (Flow flow : flows) {
-						if (flow.getCurrTask().getTaskId() == taskID)
-							resultList.add(flow);
-					}
+		for (Workflow wf : WFInfo) {
+			if (wf.getWF_ID() == WF_ID) {
+				ArrayList<Flow> flows = wf.getFlows();
+				for (Flow flow : flows) {
+					if (flow.getCurrTask().getTaskId() == taskID)
+						resultList.add(flow);
 				}
 			}
 		}
@@ -1013,18 +980,15 @@ public class Markov {
 
 	private List<Flow> findTheFlowListOfPredecessorTask(int WF_ID, int taskID) {
 		List<Flow> resultList = new ArrayList<>();
-		synchronized (WFInfo) {
-			for (Workflow wf : WFInfo) {
-				if (wf.getWF_ID() == WF_ID) {
-					ArrayList<Flow> flows = wf.getFlows();
-					for (Flow flow : flows) {
-						if (flow.getSuccTask().getTaskId() == taskID)
-							resultList.add(flow);
-					}
+		for (Workflow wf : WFInfo) {
+			if (wf.getWF_ID() == WF_ID) {
+				ArrayList<Flow> flows = wf.getFlows();
+				for (Flow flow : flows) {
+					if (flow.getSuccTask().getTaskId() == taskID)
+						resultList.add(flow);
 				}
 			}
 		}
-
 		return resultList;
 	}
 
@@ -1034,14 +998,12 @@ public class Markov {
 	 */
 
 	public static void generateWorkflows(int numOfWF) {
-		logger.debug("生成工作流，数量：" + numOfWF);
+		// logger.debug("生成工作流，数量：" + numOfWF);
 		long startTime = System.currentTimeMillis();
 		for (int i = numOfWF; i > 0; i--) {
 			WorkflowGenerator workflowGenerator = WorkflowGenerator.getWorkflowGenerator();
 			Workflow wf = workflowGenerator.generateAWorkflow_V2(0);
-			synchronized (WFInfo) {
-				WFInfo.add(wf);
-			}
+			WFInfo.add(wf);
 
 		}
 		long endTime = System.currentTimeMillis();
@@ -1049,7 +1011,9 @@ public class Markov {
 		logger.debug("生成工作流耗时：" + durTime.setScale(4) + "s");
 	}
 
-	private Double getMigrationCosts(/* List<String> old_x_wtk, List<String> new_x_wtk */) {
+	private Double getMigrationCosts(List<String> old_x_wtk, List<String> var_x_wtk) {
+		long startTime = System.currentTimeMillis();
+
 		if (null == old_x_wtk || old_x_wtk.isEmpty()) {
 			return 0.0;
 		}
@@ -1067,19 +1031,21 @@ public class Markov {
 					if (task_id_old == task_id_new) {
 						Integer UAV_id_old = Integer.valueOf(oldItem[2]);
 						Integer UAV_id_new = Integer.valueOf(newItem[2]);
-						int migratePath = selectAShortestRdmPathForAPairOfUAVs(UAV_id_old, UAV_id_new);
-						List<String> pathContent = pathDatabase.get(migratePath);
-						migrationCost += pathContent.size();
-						// logger.info("迁移造成花销：" + migrationCost);
+						Double migrateCost = getCostOfRdmShortestPathForAPairOfUAVs(UAV_id_old, UAV_id_new);
+						migrationCost += migrateCost;
+						break;
 					}
 				}
 			}
 		}
+		long endTime = System.currentTimeMillis();
+		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
+		logger.debug("getMigrationCosts耗时：" + durTime.setScale(8) + "s");
 		return migrationCost * 10;
 	}
 
 	/**
-	 * 根据t+1时刻的队列积存
+	 * 获取t+1时刻的队列积存
 	 * 
 	 * @param Q_t
 	 *            t时刻的进入队列的迁移代价
@@ -1098,16 +1064,14 @@ public class Markov {
 		double ranSeed = Double.valueOf(randomTool.nextInt(100000000)) / 100000000;
 		// if (ranSeed < productionRate) {
 		if (ranSeed < 2) {
-			synchronized (WFInfo) {
-				old_x_wtk = (ArrayList<String>) var_x_wtk.clone();
-				int numOfWFExampleModel = wfGenerator.exampleWorkflows.size() + 1;
-				Workflow aWorkflow = wfGenerator.generateAWorkflow_V2(randomTool.nextInt(numOfWFExampleModel));
+			old_x_wtk = (ArrayList<String>) var_x_wtk.clone();
+			int numOfWFExampleModel = wfGenerator.exampleWorkflows.size() + 1;
+			Workflow aWorkflow = wfGenerator.generateAWorkflow_V2(randomTool.nextInt(numOfWFExampleModel));
 
-				WFInfo.add(aWorkflow);
-				// 修改工作流集合变化标志，表示系统中运行的工作流已发生变化
-				WFInfoChangeFlag = true;
-				logger.info("添加工作流...");
-			}
+			WFInfo.add(aWorkflow);
+			// 修改工作流集合变化标志，表示系统中运行的工作流已发生变化
+			WFInfoChangeFlag = true;
+			logger.info("添加工作流...");
 		}
 	}
 
@@ -1136,44 +1100,38 @@ public class Markov {
 	 */
 	private static void remove_X_Y(Integer WF_ID) {
 		// 删除var_x_wtk中的过期WF的信息
-		synchronized (var_x_wtk) {
-			for (Iterator<String> xIter = var_x_wtk.iterator(); xIter.hasNext();) {
-				String x_wtk = xIter.next();
-				String[] wtk = x_wtk.split(",");
-				Integer wfId = Integer.valueOf(wtk[0]);
-				if (wfId == WF_ID) {
-					xIter.remove();
-				}
+		for (Iterator<String> xIter = var_x_wtk.iterator(); xIter.hasNext();) {
+			String x_wtk = xIter.next();
+			String[] wtk = x_wtk.split(",");
+			Integer wfId = Integer.valueOf(wtk[0]);
+			if (wfId == WF_ID) {
+				xIter.remove();
 			}
 		}
 		// 删除var_y_wpab中的过期WF的信息
-		synchronized (var_y_wpab) {
-			for (Iterator<String> yIter = var_y_wpab.iterator(); yIter.hasNext();) {
-				String y_wpab = yIter.next();
-				String[] wpab = y_wpab.split(",");
-				Integer wfId = Integer.valueOf(wpab[0]);
-				if (wfId == WF_ID) {
-					yIter.remove();
-				}
+		for (Iterator<String> yIter = var_y_wpab.iterator(); yIter.hasNext();) {
+			String y_wpab = yIter.next();
+			String[] wpab = y_wpab.split(",");
+			Integer wfId = Integer.valueOf(wpab[0]);
+			if (wfId == WF_ID) {
+				yIter.remove();
 			}
 		}
 	}
 
 	public static void randomlyRemoveAWorkflow() {
-		synchronized (WFInfo) {
-			int numOfWF = WFInfo.size();
-			int WF_ID_idx = randomTool.nextInt(numOfWF);
+		int numOfWF = WFInfo.size();
+		int WF_ID_idx = randomTool.nextInt(numOfWF);
 
-			if (null != WFInfo) {
-				old_x_wtk = (ArrayList<String>) var_x_wtk.clone();
-				Workflow WF = WFInfo.get(WF_ID_idx);
-				WFInfo.remove(WF);
-				Integer WF_ID = WF.getWF_ID();
-				remove_X_Y(WF_ID);
-				// 修改工作流集合变化标志，表示系统中运行的工作流已发生变化
-				WFInfoChangeFlag = true;
-				logger.info("移除ID为" + WF_ID + "的工作流");
-			}
+		if (null != WFInfo) {
+			old_x_wtk = (ArrayList<String>) var_x_wtk.clone();
+			Workflow WF = WFInfo.get(WF_ID_idx);
+			WFInfo.remove(WF);
+			Integer WF_ID = WF.getWF_ID();
+			remove_X_Y(WF_ID);
+			// 修改工作流集合变化标志，表示系统中运行的工作流已发生变化
+			WFInfoChangeFlag = true;
+			logger.info("移除ID为" + WF_ID + "的工作流");
 		}
 	}
 
@@ -1194,7 +1152,7 @@ public class Markov {
 		markov.updateSystemMetrics();
 		markov.printCurrentSysInfo();
 		// markov.setTimerForAllTaskFlows(0.0);
-		EnumeratedDistribution<?> actions = markov.setActionForAllTaskFlows();
+		actions = markov.setActionForAllTaskFlows();
 
 		double current_ts = 0.0;
 
@@ -1226,10 +1184,6 @@ public class Markov {
 				continue;
 			}
 
-			if (WFInfoChangeFlag) {
-				// 如果执行的工作流发生了变化，即使有时钟倒计时结束仍然不做切换操作，优先重置所有Action
-				continue;
-			}
 			Timer timer = (Timer) actions.sample();
 			int WF_ID = timer.WF_ID;
 			int taskA_ID = timer.taskAID;
@@ -1247,22 +1201,11 @@ public class Markov {
 			}
 			// 打印输出性能信息
 			markov.updateSystemMetrics();
-			migrationCost = markov.getMigrationCosts();
+			migrationCost = markov.getMigrationCosts(old_x_wtk, var_x_wtk);
 			markov.printCurrentSysInfo();
 			iterationNum++;
 			// markov.printVarX();
 			// markov.printVarY();
-
-			// markov.addWorkflow();
-			// markov.removeOverdueWorkflow();
-
-			// ================================
-
-			// ================================
-			// if (RESET_Msg) {
-			// markov.deleteAllTimer();
-			// markov.RESET(current_ts);
-			// }
 			actions = markov.setActionForAllTaskFlows();
 
 			current_ts += STEP_TO_RUN;
