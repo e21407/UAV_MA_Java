@@ -1,5 +1,6 @@
 package com.lbc.ma;
 
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -158,6 +159,8 @@ public class Markov {
 	static Random randomTool = new Random();
 
 	static Map<String, Double> migCostListOf2Node = new HashMap<>();
+
+	static final int numOfThread = 4;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -406,8 +409,9 @@ public class Markov {
 	}
 
 	private static void OneAPath(int pathID, int WF_ID, int taskAID, int taskBID, List<String> var_y_wpab) {
-		List<String> pathContent = pathDatabase.get(pathID);
-		double neededBandwidth = getTheNeedBandwidthOfATaskFlow(WF_ID, taskAID, taskBID);
+		// List<String> pathContent = pathDatabase.get(pathID);
+		// double neededBandwidth = getTheNeedBandwidthOfATaskFlow(WF_ID, taskAID,
+		// taskBID);
 		// for (String item : pathContent) {
 		// Double TR = Aggregated_TR_in_acrs.get(item);
 		// TR += neededBandwidth;
@@ -710,8 +714,8 @@ public class Markov {
 		int qt = queueTime > 0 ? queueTime : 0;
 		double m_avg = queueTime > 0 ? (allMigrationCost / queueTime) : 0;
 		String infoStr = String.format(
-				"t: %d  i: %d  p: %.2f  thr: %.2f  RCost: %.2f  CCost: %.2f  MCost: %.2f  Q(t): %.2f  Mavg: %.2f  qt: %d",
-				step_times, iterationNum, Sys_performance, global_system_throughput, global_weighted_RoutingCost,
+				"t: %d  p: %.2f  thr: %.2f  RCost: %.2f  CCost: %.2f  MCost: %.2f  Q(t): %.2f  Mavg: %.2f  qt: %d",
+				step_times, Sys_performance, global_system_throughput, global_weighted_RoutingCost,
 				global_weighted_computeCost, migrationCost, Qt, m_avg, qt);
 		logger.info(infoStr);
 
@@ -725,21 +729,36 @@ public class Markov {
 		List<Integer> listOfSatisfiedWF = getListOfSatisfiedWF();
 
 		// ---------------------------------------------------
-		List<Integer> subList1 = listOfSatisfiedWF.subList(0, listOfSatisfiedWF.size() / 3);
-		List<Integer> subList2 = listOfSatisfiedWF.subList(listOfSatisfiedWF.size() / 3,
-				listOfSatisfiedWF.size() / 3 * 2);
-		List<Integer> subList3 = listOfSatisfiedWF.subList(listOfSatisfiedWF.size() / 3 * 2, listOfSatisfiedWF.size());
-		CountDownLatch countDownLatch = new CountDownLatch(3);
-		SetActionThread t1 = new SetActionThread(countDownLatch, pmf, subList1, (ArrayList) var_y_wpab,
-				(ArrayList) var_x_wtk);
-		SetActionThread t2 = new SetActionThread(countDownLatch, pmf, subList2, (ArrayList) var_y_wpab,
-				(ArrayList) var_x_wtk);
-		SetActionThread t3 = new SetActionThread(countDownLatch, pmf, subList3, (ArrayList) var_y_wpab,
-				(ArrayList) var_x_wtk);
+		CountDownLatch countDownLatch = new CountDownLatch(numOfThread);
+		for (int i = 0; i < numOfThread; i++) {
+			List<Integer> subList = listOfSatisfiedWF.subList(listOfSatisfiedWF.size() / numOfThread * i,
+					listOfSatisfiedWF.size() / numOfThread * (i + 1));
+			SetActionThread setActionThread = new SetActionThread(countDownLatch, pmf, subList, (ArrayList) var_y_wpab,
+					(ArrayList) var_x_wtk);
+			setActionThread.start();
+		}
 
-		t1.start();
-		t2.start();
-		t3.start();
+		// List<Integer> subList1 = listOfSatisfiedWF.subList(0,
+		// listOfSatisfiedWF.size() / 3);
+		// List<Integer> subList2 = listOfSatisfiedWF.subList(listOfSatisfiedWF.size() /
+		// 3,
+		// listOfSatisfiedWF.size() / 3 * 2);
+		// List<Integer> subList3 = listOfSatisfiedWF.subList(listOfSatisfiedWF.size() /
+		// 3 * 2, listOfSatisfiedWF.size());
+		// CountDownLatch countDownLatch = new CountDownLatch(3);
+		// SetActionThread t1 = new SetActionThread(countDownLatch, pmf, subList1,
+		// (ArrayList) var_y_wpab,
+		// (ArrayList) var_x_wtk);
+		// SetActionThread t2 = new SetActionThread(countDownLatch, pmf, subList2,
+		// (ArrayList) var_y_wpab,
+		// (ArrayList) var_x_wtk);
+		// SetActionThread t3 = new SetActionThread(countDownLatch, pmf, subList3,
+		// (ArrayList) var_y_wpab,
+		// (ArrayList) var_x_wtk);
+		//
+		// t1.start();
+		// t2.start();
+		// t3.start();
 		try {
 			// 阻塞当前线程，直到倒数计数器倒数到0
 			countDownLatch.await();
@@ -834,7 +853,6 @@ public class Markov {
 	}
 
 	private static int getTheIU_UAV_IDOfATask(int WF_ID, int taskID) {
-		long startTime = System.currentTimeMillis();
 		for (String str : var_x_wtk) {
 			String[] sstr = str.split(",");
 			int w = Integer.valueOf(sstr[0]);
@@ -894,7 +912,8 @@ public class Markov {
 		double queueBlocak = getQueueBlock(Qt, migrationCost, M_avg);
 		double mcost = getMigrationCosts(old_x_wtk, var_x_wtk);
 		// return V * xf - queueBlocak * migrationCost;
-		return V * xf - queueBlocak * (mcost - M_avg);
+		// return V * xf - queueBlocak * (mcost - M_avg);
+		return V * xf - queueBlocak * (mcost - M_avg) - mcost;
 	}
 
 	private static FakeReplaceReturnResult fakeReplaceUAVorPathForATaskToReturnEstimatedSysObj(int WF_ID, int taskA_ID,
@@ -986,8 +1005,9 @@ public class Markov {
 	}
 
 	private static void zeroAPath(int pathID, int WF_ID, int taskA_ID, int taskB_ID, List<String> var_y_wpab) {
-		List<String> pathContent = pathDatabase.get(pathID);
-		double neededBandwidth = getTheNeedBandwidthOfATaskFlow(WF_ID, taskA_ID, taskB_ID);
+		// List<String> pathContent = pathDatabase.get(pathID);
+		// double neededBandwidth = getTheNeedBandwidthOfATaskFlow(WF_ID, taskA_ID,
+		// taskB_ID);
 		// for (String sedment : pathContent) {
 		// Double TR = Aggregated_TR_in_acrs.get(sedment);
 		// TR -= neededBandwidth;
@@ -1170,8 +1190,31 @@ public class Markov {
 		}
 	}
 
+	static void logParamInfo() {
+		ParamInfo paramInfo = new ParamInfo();
+		Class clazz = paramInfo.getClass();
+		Field[] declaredFields = clazz.getDeclaredFields();
+		String params = "";
+		for (Field field : declaredFields) {
+			// 获取属性
+			String name = field.getName();
+			// 获取属性值
+			Object value = null;
+			try {
+				value = field.get(paramInfo);
+			} catch (IllegalArgumentException | IllegalAccessException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			params += name + ":" + value.toString() + ";\t";
+		}
+		logger.info(params);
+	}
+
 	/////////////////////////////////////////////////////////////////////////////////////
 	public static void markoveFunction() {
+		// 记录参数
+		Markov.logParamInfo();
 		// DecimalFormat df = new DecimalFormat("#.00");
 		// String logStr = "";
 		Markov markov = new Markov();
@@ -1184,8 +1227,8 @@ public class Markov {
 		 * WorkflowMaintainer()); WFMaintainerThread.start();
 		 */
 
-		markov.updateSystemMetrics();
-		markov.printCurrentSysInfo();
+		Markov.updateSystemMetrics();
+//		markov.printCurrentSysInfo();
 		// markov.setTimerForAllTaskFlows(0.0);
 		actions = markov.setActionForAllTaskFlows((List<String>) var_y_wpab.clone(), (List<String>) var_x_wtk.clone());
 
@@ -1212,7 +1255,7 @@ public class Markov {
 				// migrationCost = markov.getMigrationCosts(old_x_wtk, var_x_wtk);
 				allMigrationCost += migrationCost;
 				// 更新迁移代价队列
-				Qt = markov.getQueueBlock(Qt, migrationCost, M_avg);
+				Qt = Markov.getQueueBlock(Qt, migrationCost, M_avg);
 				queueTime++;
 				// markov.updateSystemMetrics();
 				actions = markov.setActionForAllTaskFlows((List<String>) var_y_wpab.clone(),
@@ -1229,15 +1272,15 @@ public class Markov {
 			int UAV_ID_Old = timer.oldUAVID;
 			int UAV_ID_New = timer.newUAVID;
 			List<TasksFlowToReplaceInfo> taskFlows = timer.fakeReplaceReturnResult.taskFlows;
-			markov.replaceTheSelectedNewUAVorPathForAFlow(WF_ID, taskA_ID, taskB_ID, UAV_ID_Old, UAV_ID_New, pathID_Old,
+			Markov.replaceTheSelectedNewUAVorPathForAFlow(WF_ID, taskA_ID, taskB_ID, UAV_ID_Old, UAV_ID_New, pathID_Old,
 					pathID_New, var_y_wpab, var_x_wtk);
 			for (TasksFlowToReplaceInfo tf : taskFlows) {
-				markov.replaceTheSelectedNewUAVorPathForAFlow(tf.WF_ID, tf.curTaskID, tf.sucTaskID, tf.taskB_UAV_ID,
+				Markov.replaceTheSelectedNewUAVorPathForAFlow(tf.WF_ID, tf.curTaskID, tf.sucTaskID, tf.taskB_UAV_ID,
 						tf.taskB_UAV_ID, tf.oldPathID, tf.newPathID, var_y_wpab, var_x_wtk);
 			}
 			// 打印输出性能信息
-			markov.updateSystemMetrics();
-			migrationCost = markov.getMigrationCosts(old_x_wtk, var_x_wtk);
+			Markov.updateSystemMetrics();
+			migrationCost = Markov.getMigrationCosts(old_x_wtk, var_x_wtk);
 			markov.printCurrentSysInfo();
 			iterationNum++;
 			// markov.printVarX();

@@ -2,7 +2,15 @@ package com.lbc.ma;
 
 public class ParamInfo {
 
-	static final double T = 500; // 运行总时长
+	static final int originalWFNum = 12;	//一开始生产工作流的数量
+	
+	static final double T = 10000; // 运行总时长
+	
+	static final double M_avg = 300.0;
+
+	static final double V = 3.0;
+	
+	static final double Beta = 0.5;
 
 	static final int taskBaseCap = 250; // 任务所需资源基础值
 
@@ -29,13 +37,7 @@ public class ParamInfo {
 
 	static final double STEP_TO_RUN = 1; // 运行步长
 
-	static final double Beta = 0.5;
-
 	static final double Tau = 0;
-
-	static final double M_avg = 60.0;
-
-	static final double V = 3.0;
 
 	static final double productionRate = 0.002;
 

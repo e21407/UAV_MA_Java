@@ -11,7 +11,7 @@ public class Main {
 //		Thread controlWindow = new Thread(new ControlWindow());
 //		controlWindow.start();
 
-		Markov.generateWorkflows(12);
+		Markov.generateWorkflows(ParamInfo.originalWFNum);
 
 		Markov.markoveFunction();
 		long endTime = System.currentTimeMillis();
