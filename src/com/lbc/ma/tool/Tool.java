@@ -1,4 +1,4 @@
-package com.lbc.ma;
+package com.lbc.ma.tool;
 
 
 import java.io.File;

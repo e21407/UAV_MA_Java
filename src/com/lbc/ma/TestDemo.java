@@ -2,14 +2,17 @@ package com.lbc.ma;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import org.apache.commons.math3.distribution.EnumeratedDistribution;
 import org.apache.commons.math3.util.Pair;
 import org.junit.Test;
 
+import com.lbc.ma.tool.Tool;
+
 public class TestDemo {
 	@Test
-	public void test0(String[] args) {
+	public void test0() {
 		double expItem = Math.exp(50) + Double.MIN_VALUE/* + 0.00000001 */;
 		// System.out.println("Xf_prime - Xf : " + (Xf_prime - Xf));
 		// System.out.println("expItem: " + expItem);
@@ -43,5 +46,23 @@ public class TestDemo {
 		System.out.println(3 + ": " + count3);
 	}
 	
+	@Test
+	public void test2() {
+		Random rdm = new Random();
+		int numIn = 0;
+		int numOut = 0;
+		for (int i = 0; i < 50; i++) {
+			int nextInt = rdm.nextInt(10000);
+			if(nextInt <5500) {
+				System.out.println("-t	" + (i+1) * 300 + "	-action	in");
+				numIn++;
+			}
+			else {
+				System.out.println("-t	" + (i+1) * 300 + "	-action	out");
+				numOut++;
+			}
+		}
+		System.out.println("numIn: " + numIn + "  numOut:" + numOut);
+	}
 	
 }

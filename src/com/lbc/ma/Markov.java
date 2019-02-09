@@ -19,16 +19,17 @@ import org.apache.commons.math3.util.Pair;
 import org.apache.log4j.Logger;
 import com.lbc.ma.dataStructure.Flow;
 import com.lbc.ma.dataStructure.Workflow;
+import com.lbc.ma.tool.Tool;
 
 public class Markov {
 
 	static protected Logger logger = Logger.getLogger(Markov.class);
 
 	// input file name
-	final static String CandPaths_file = "input_data/_input_PathSet2.txt";
+	final static String CandPaths_file = "input_data/_input_PathSet3.txt";
 	final static String CapLinks_file = "input_data/_input_Cap_links10000.txt";
 	final static String Info_of_UAVs_file = "input_data/_input_Info_of_nodes.txt";
-	final static String Info_of_WF_Chaneg = "input_data/WF_change_info.txt";
+	final static String Info_of_WF_Chaneg = "input_data/WF_change_infoE.txt";
 
 	/**
 	 * {"Src-UAV,Dst-UAV":[path1_id,path2_id,...]}, the candidate path-set for all
@@ -160,7 +161,7 @@ public class Markov {
 
 	static Map<String, Double> migCostListOf2Node = new HashMap<>();
 
-	static final int numOfThread = 4;
+	static final int numOfThread = 3;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1121,8 +1122,9 @@ public class Markov {
 		if (ranSeed < 2) {
 			old_x_wtk = (ArrayList<String>) var_x_wtk.clone();
 			int numOfWFExampleModel = wfGenerator.exampleWorkflows.size() + 1;
-			Workflow aWorkflow = wfGenerator.generateAWorkflow_V2(randomTool.nextInt(numOfWFExampleModel));
-
+			// Workflow aWorkflow =
+			// wfGenerator.generateAWorkflow_V2(randomTool.nextInt(numOfWFExampleModel));
+			Workflow aWorkflow = wfGenerator.generateAWorkflow_V2(0);
 			WFInfo.add(aWorkflow);
 			// 修改工作流集合变化标志，表示系统中运行的工作流已发生变化
 			WFInfoChangeFlag = true;
@@ -1228,7 +1230,7 @@ public class Markov {
 		 */
 
 		Markov.updateSystemMetrics();
-//		markov.printCurrentSysInfo();
+		// markov.printCurrentSysInfo();
 		// markov.setTimerForAllTaskFlows(0.0);
 		actions = markov.setActionForAllTaskFlows((List<String>) var_y_wpab.clone(), (List<String>) var_x_wtk.clone());
 
@@ -1258,8 +1260,11 @@ public class Markov {
 				Qt = Markov.getQueueBlock(Qt, migrationCost, M_avg);
 				queueTime++;
 				// markov.updateSystemMetrics();
+				// markov.printCurrentSysInfo();
 				actions = markov.setActionForAllTaskFlows((List<String>) var_y_wpab.clone(),
 						(List<String>) var_x_wtk.clone());
+				ArrayList<Workflow> listOfUnsatisfiedWF = markov.getListOfUnsatisfiedWF();
+				markov.assignTaskToUAVRandomly(listOfUnsatisfiedWF);
 				continue;
 			}
 
