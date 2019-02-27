@@ -13,7 +13,7 @@ public class LogProcessTool {
 
 	@Test
 	public void test1() throws IOException {
-		String[] inFilePaths = { "info_a0b1.log", "info_a1b0.log", "info_a1b1.log" };
+		String[] inFilePaths = { "infoV=0.01.log", "infoV=0.05.log", "infoV=0.5.log", "infoV=1.log" };
 		for (String filePath : inFilePaths) {
 			String outputResPath = "pro_" + filePath;
 			File file = new File(outputResPath);
@@ -61,8 +61,7 @@ public class LogProcessTool {
 
 	@Test
 	public void test2() throws IOException {
-		String[] inFilePaths = { "pro_infoBeta=0.01.log", "pro_infoBeta=0.1.log", "pro_infoBeta=0.5.log",
-				"pro_infoBeta=1.log", "pro_infoBeta=5.log", "pro_infoBeta=10.log" };
+		String[] inFilePaths = { "pro_infoV=0.01.log", "pro_infoV=0.05.log", "pro_infoV=0.5.log", "pro_infoV=1.log" };
 		List<ArrayList<Double>> performences = new ArrayList<ArrayList<Double>>();
 		List<ArrayList<Double>> routingCosts = new ArrayList<ArrayList<Double>>();
 		List<ArrayList<Double>> computationCosts = new ArrayList<ArrayList<Double>>();

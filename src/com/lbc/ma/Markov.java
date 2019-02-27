@@ -29,7 +29,7 @@ public class Markov {
 	final static String CandPaths_file = "input_data/_input_PathSet3.txt";
 	final static String CapLinks_file = "input_data/_input_Cap_links10000.txt";
 	final static String Info_of_UAVs_file = "input_data/_input_Info_of_nodes.txt";
-	final static String Info_of_WF_Chaneg = "input_data/WF_change_infoE.txt";
+	final static String Info_of_WF_Chaneg = "input_data/WF_change_info3.txt";
 
 	/**
 	 * {"Src-UAV,Dst-UAV":[path1_id,path2_id,...]}, the candidate path-set for all
@@ -616,7 +616,7 @@ public class Markov {
 		long endTime = System.currentTimeMillis();
 		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
 		logger.debug("updateSystemMetricsAndReturnSystenObj耗时：" + durTime.setScale(8) + "s");
-		return V * xf - queueBlocak * (mcost - M_avg);
+		return V * xf - queueBlocak * (mcost - M_avg) - mcost;
 	}
 
 	// private void moveUnsatisfiedWFFromUAVs() {

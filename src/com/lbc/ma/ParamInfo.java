@@ -4,11 +4,11 @@ public class ParamInfo {
 
 	static final int originalWFNum = 8;	//一开始生产工作流的数量
 	
-	static final double T = 1000; // 运行总时长
+	static final double T = 2300; // 运行总时长
 	
 	static final double M_avg = 300.0;
 
-	static final double V = 5.0;
+	static final double V = 2.0;
 	
 	static final double Beta = 5;
  
