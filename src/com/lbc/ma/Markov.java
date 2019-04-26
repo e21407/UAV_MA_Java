@@ -29,7 +29,7 @@ public class Markov {
 	final static String CandPaths_file = "input_data/_input_PathSet3.txt";
 	final static String CapLinks_file = "input_data/_input_Cap_links10000.txt";
 	final static String Info_of_UAVs_file = "input_data/_input_Info_of_nodes.txt";
-	final static String Info_of_WF_Chaneg = "input_data/WF_change_info3.txt";
+	final static String Info_of_WF_Change = "input_data/WF_change_info3.txt";
 
 	/**
 	 * {"Src-UAV,Dst-UAV":[path1_id,path2_id,...]}, the candidate path-set for all
@@ -510,7 +510,7 @@ public class Markov {
 		logger.debug("updateSystemMetrics耗时：" + durTime.setScale(8) + "s");
 	}
 
-	private static double updateSystemMetricsAndReturnSystenObj(List<String> var_y_wpab, List<String> var_x_wtk) {
+	private static double updateSystemMetricsAndReturnSystemObj(List<String> var_y_wpab, List<String> var_x_wtk) {
 		// logger.debug("计算系统性能指标...");
 		long startTime = System.currentTimeMillis();
 		// moveUnsatisfiedWFFromUAVs();
@@ -609,14 +609,15 @@ public class Markov {
 		double weighted_compute_cost = WEIGHT_OF_COMPUTE_COST * computeCost;
 		double weighted_throughput = WEIGHT_OF_THROUGHPUT * system_throughput;
 
-		double xf = weighted_throughput - weight_b_rou * weighted_routing_cost - weight_a_com * weighted_compute_cost;
+		double xf = weighted_throughput
+				- V * (weight_b_rou * weighted_routing_cost + weight_a_com * weighted_compute_cost);
 		double queueBlocak = getQueueBlock(Qt, migrationCost, M_avg);
 		double mcost = getMigrationCosts(old_x_wtk, var_x_wtk);
 
 		long endTime = System.currentTimeMillis();
 		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
 		logger.debug("updateSystemMetricsAndReturnSystenObj耗时：" + durTime.setScale(8) + "s");
-		return V * xf - queueBlocak * (mcost - M_avg) - mcost;
+		return xf - queueBlocak * (mcost - M_avg);
 	}
 
 	// private void moveUnsatisfiedWFFromUAVs() {
@@ -792,7 +793,13 @@ public class Markov {
 		long endTime = System.currentTimeMillis();
 		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
 		logger.debug("设置全部action耗时：" + durTime.setScale(8) + "s");
-		return new EnumeratedDistribution(pmf);
+		EnumeratedDistribution result = null;
+		try {
+			result = new EnumeratedDistribution(pmf);
+		} catch (Exception e) {
+			return null;
+		}
+		return result;
 	}
 
 	static Pair<Timer, Double> setActionForATaskFlow(int WF_ID, int taskAID, int taskBID, ArrayList<String> var_y_wpab,
@@ -816,13 +823,22 @@ public class Markov {
 		FakeReplaceReturnResult fakeReplaceResult = fakeReplaceUAVorPathForATaskToReturnEstimatedSysObj(WF_ID, taskAID,
 				taskBID, UAV_IDOld, UAV_IDNew, pathIDOld, pathIDNew, var_y_wpab, var_x_wtk);
 		double Xf_prime = fakeReplaceResult.estimatedSysObj;
-		double expItem = Math.exp(0.5 * Beta * (Xf_prime - Xf)) + Double.MIN_VALUE/* + 0.00000001 */;
+		double expItem = Math.exp(0.5 * Beta * (Xf_prime - Xf)) /* + 0.00000001 */;
 		// System.out.println("Xf_prime - Xf : " + (Xf_prime - Xf));
 		// System.out.println("expItem: " + expItem);
 		// 避免Infinity的情况
-		expItem = expItem > Double.MAX_VALUE ? Double.MAX_VALUE : expItem;
+		// expItem = expItem > Double.MAX_VALUE ? Double.MAX_VALUE : expItem;
+		if (expItem > Double.MAX_VALUE) {
+			// logger.info("MAX_Overflow when setting action");
+			expItem = Double.MAX_VALUE;
+		}
 		// 避免0.0的情况
-		expItem = expItem < Double.MIN_VALUE ? Double.MIN_VALUE : expItem;
+		// expItem = expItem < Double.MIN_VALUE ? Double.MIN_VALUE : expItem;
+		if (expItem < Double.MIN_VALUE) {
+			// logger.info("MIN_Overflow when setting action");
+			// expItem = Double.MIN_VALUE;
+			return null; // 避免性能骤降的方案
+		}
 		Timer timer = new Timer(WF_ID, taskAID, taskBID, null, null, pathIDOld, pathIDNew, UAV_IDOld, UAV_IDNew,
 				fakeReplaceResult);
 
@@ -908,13 +924,13 @@ public class Markov {
 	}
 
 	private static double getObjValOfConfigurationsInWholeSystem() {
-		double xf = global_system_throughput - weight_b_rou * global_weighted_RoutingCost
-				- weight_a_com * global_weighted_computeCost;
+		double xf = global_system_throughput
+				- V * (weight_b_rou * global_weighted_RoutingCost + weight_a_com * global_weighted_computeCost);
 		double queueBlocak = getQueueBlock(Qt, migrationCost, M_avg);
 		double mcost = getMigrationCosts(old_x_wtk, var_x_wtk);
 		// return V * xf - queueBlocak * migrationCost;
 		// return V * xf - queueBlocak * (mcost - M_avg);
-		return V * xf - queueBlocak * (mcost - M_avg) - mcost;
+		return xf - queueBlocak * (mcost - M_avg);
 	}
 
 	private static FakeReplaceReturnResult fakeReplaceUAVorPathForATaskToReturnEstimatedSysObj(int WF_ID, int taskA_ID,
@@ -957,7 +973,7 @@ public class Markov {
 			// printVarY();
 		}
 
-		double estimatedSysObj = updateSystemMetricsAndReturnSystenObj(var_y_wpab, var_x_wtk);
+		double estimatedSysObj = updateSystemMetricsAndReturnSystemObj(var_y_wpab, var_x_wtk);
 		// swap back
 		// var_y_wpab = y_wpab_clone;
 		// var_x_wtk = x_wtk_clone;
@@ -1221,7 +1237,7 @@ public class Markov {
 		// String logStr = "";
 		Markov markov = new Markov();
 		markov.initializeReadData(CandPaths_file, CapLinks_file, Info_of_UAVs_file);
-		WFChangeInfo = markov.initWFChangeInfo(Info_of_WF_Chaneg);
+		WFChangeInfo = markov.initWFChangeInfo(Info_of_WF_Change);
 		markov.assignTaskToUAVRandomly(WFInfo);
 
 		/*
@@ -1268,28 +1284,31 @@ public class Markov {
 				continue;
 			}
 
-			Timer timer = (Timer) actions.sample();
-			int WF_ID = timer.WF_ID;
-			int taskA_ID = timer.taskAID;
-			int taskB_ID = timer.taskBID;
-			int pathID_Old = timer.oldPathID;
-			int pathID_New = timer.newPathID;
-			int UAV_ID_Old = timer.oldUAVID;
-			int UAV_ID_New = timer.newUAVID;
-			List<TasksFlowToReplaceInfo> taskFlows = timer.fakeReplaceReturnResult.taskFlows;
-			Markov.replaceTheSelectedNewUAVorPathForAFlow(WF_ID, taskA_ID, taskB_ID, UAV_ID_Old, UAV_ID_New, pathID_Old,
-					pathID_New, var_y_wpab, var_x_wtk);
-			for (TasksFlowToReplaceInfo tf : taskFlows) {
-				Markov.replaceTheSelectedNewUAVorPathForAFlow(tf.WF_ID, tf.curTaskID, tf.sucTaskID, tf.taskB_UAV_ID,
-						tf.taskB_UAV_ID, tf.oldPathID, tf.newPathID, var_y_wpab, var_x_wtk);
+			Timer timer = null;
+			if (null != actions) {
+				timer = (Timer) actions.sample();
+				int WF_ID = timer.WF_ID;
+				int taskA_ID = timer.taskAID;
+				int taskB_ID = timer.taskBID;
+				int pathID_Old = timer.oldPathID;
+				int pathID_New = timer.newPathID;
+				int UAV_ID_Old = timer.oldUAVID;
+				int UAV_ID_New = timer.newUAVID;
+				List<TasksFlowToReplaceInfo> taskFlows = timer.fakeReplaceReturnResult.taskFlows;
+				Markov.replaceTheSelectedNewUAVorPathForAFlow(WF_ID, taskA_ID, taskB_ID, UAV_ID_Old, UAV_ID_New,
+						pathID_Old, pathID_New, var_y_wpab, var_x_wtk);
+				for (TasksFlowToReplaceInfo tf : taskFlows) {
+					Markov.replaceTheSelectedNewUAVorPathForAFlow(tf.WF_ID, tf.curTaskID, tf.sucTaskID, tf.taskB_UAV_ID,
+							tf.taskB_UAV_ID, tf.oldPathID, tf.newPathID, var_y_wpab, var_x_wtk);
+				}
 			}
+			// markov.printVarX();
+			// markov.printVarY();
 			// 打印输出性能信息
 			Markov.updateSystemMetrics();
 			migrationCost = Markov.getMigrationCosts(old_x_wtk, var_x_wtk);
 			markov.printCurrentSysInfo();
 			iterationNum++;
-			// markov.printVarX();
-			// markov.printVarY();
 			actions = markov.setActionForAllTaskFlows((List<String>) var_y_wpab.clone(),
 					(List<String>) var_x_wtk.clone());
 

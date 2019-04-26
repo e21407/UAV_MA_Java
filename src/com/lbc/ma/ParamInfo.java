@@ -6,21 +6,21 @@ public class ParamInfo {
 	
 	static final double T = 2300; // 运行总时长
 	
-	static final double M_avg = 300.0;
+	static final double M_avg = 50.0;
 
-	static final double V = 2.0;
+	static final double V = 10;
 	
-	static final double Beta = 5;
+	static final double Beta = 2000;
  
-	static final int taskBaseCap = 275; // 任务所需资源基础值
+	static final int taskBaseCap = 300; // 任务所需资源基础值
 
 	static final int taskRdmCap = 1; // 任务所需资源随机增加范围
 
 	static final double UAVLinkCoefficient = 1;
 	static final double EdgeServerLinkCoefficient = 5;
-	static final double CloudServerLinkCoefficient = 34;
+	static final double CloudServerLinkCoefficient = 30;
 
-	static final int bandwidthBase = 90; // 两个任务之间通讯带宽基础值
+	static final int bandwidthBase = 80; // 两个任务之间通讯带宽基础值
 	static final int bandwidthRdm = 1; // 两个任务之间通讯带宽的随机增加范围
 
 	static final double duration = 2000; // 工作流执行时间

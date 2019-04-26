@@ -13,7 +13,7 @@ public class LogProcessTool {
 
 	@Test
 	public void test1() throws IOException {
-		String[] inFilePaths = { "infoV=0.01.log", "infoV=0.05.log", "infoV=0.5.log", "infoV=1.log" };
+		String[] inFilePaths = { "info_a0b1.log", "info_a1b0.log", "info_a1b1.log" };
 		for (String filePath : inFilePaths) {
 			String outputResPath = "pro_" + filePath;
 			File file = new File(outputResPath);
@@ -27,30 +27,33 @@ public class LogProcessTool {
 				file.createNewFile();
 			}
 			String oldRounds = "qt: 0";
-			for (int i = 0; i < lineOfContent.length; i++) {
+			for (int i = 3; i < lineOfContent.length; i++) {
 				String aLine = lineOfContent[i];
 				String toWrite = "";
 				if ("".equals(aLine.trim())) {
 					continue;
 				}
 				String[] split = aLine.split("\\[ INFO \\]");
-				if (split[1].trim().startsWith("t:")) {
-					String[] item = split[1].trim().split("  ");
-					String rounds = item[item.length - 1];
-					if (302 == i) {
-						toWrite = split[1].trim() + "\n";
-						bw.write(toWrite);
-					}
-					if (!oldRounds.equals(rounds)) {
-						toWrite = split[1].trim() + "\n";
-						bw.write(toWrite);
-						oldRounds = rounds;
-					}
-				} else {
-					if (!split[1].contains("工作流")) {
-						toWrite = "#" + split[1].trim() + "\n";
-						bw.write(toWrite);
-					}
+				// 2019-02-26 22:20:09 [ main:5378 ] - [ INFO ] t: 22 p: 4375.40...
+				// 截取[ INFO ]的后面部分
+				if (!split[1].trim().startsWith("t:")) {
+					// 获取上一行信息
+					String lastLine = lineOfContent[i - 1];
+					split = lastLine.split("\\[ INFO \\]");
+					toWrite = split[1].trim() + "\n";
+					bw.write(toWrite);
+
+					// String[] item = split[1].trim().split(" ");
+					// String rounds = item[item.length - 1];
+					// if (302 == i) {
+					// toWrite = split[1].trim() + "\n";
+					// bw.write(toWrite);
+					// }
+					// if (!oldRounds.equals(rounds)) {
+					// toWrite = split[1].trim() + "\n";
+					// bw.write(toWrite);
+					// oldRounds = rounds;
+					// }
 				}
 			}
 			bw.close();
@@ -61,7 +64,7 @@ public class LogProcessTool {
 
 	@Test
 	public void test2() throws IOException {
-		String[] inFilePaths = { "pro_infoV=0.01.log", "pro_infoV=0.05.log", "pro_infoV=0.5.log", "pro_infoV=1.log" };
+		String[] inFilePaths = { "pro_info_a0b1.log", "pro_info_a1b0.log", "pro_info_a1b1.log" };
 		List<ArrayList<Double>> performences = new ArrayList<ArrayList<Double>>();
 		List<ArrayList<Double>> routingCosts = new ArrayList<ArrayList<Double>>();
 		List<ArrayList<Double>> computationCosts = new ArrayList<ArrayList<Double>>();
