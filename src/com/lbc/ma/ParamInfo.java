@@ -6,7 +6,7 @@ public class ParamInfo {
 	
 	static final double T = 2300; // 运行总时长
 	
-	static final double M_avg = 50.0;
+	static final double M_avg = 100.0;
 
 	static final double V = 10;
 	
