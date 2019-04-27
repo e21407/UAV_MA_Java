@@ -42,23 +42,64 @@ public class LogProcessTool {
 					split = lastLine.split("\\[ INFO \\]");
 					toWrite = split[1].trim() + "\n";
 					bw.write(toWrite);
-
-					// String[] item = split[1].trim().split(" ");
-					// String rounds = item[item.length - 1];
-					// if (302 == i) {
-					// toWrite = split[1].trim() + "\n";
-					// bw.write(toWrite);
-					// }
-					// if (!oldRounds.equals(rounds)) {
-					// toWrite = split[1].trim() + "\n";
-					// bw.write(toWrite);
-					// oldRounds = rounds;
-					// }
 				}
 			}
 			bw.close();
 		}
 
+		System.out.println("log process finish.");
+	}
+
+	@Test
+	public void newTest1() throws IOException {
+		String[] inFilePaths = { "infoMavg=50.log", "infoMavg=100.log", "infoMavg=150.log", "infoMavg=200.log" };
+		// 读取每一个文件
+		for (String filePath : inFilePaths) {
+			String outputResPath = "pro_" + filePath;
+			File file = new File(outputResPath);
+			FileWriter fw = null;
+			fw = new FileWriter(file.getAbsoluteFile());
+			BufferedWriter bw = new BufferedWriter(fw);
+			String strFileContent = Tool.getStringFromFile(filePath);
+			String[] lineOfContent = strFileContent.split("\n");
+
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+			// 读取文件每一行
+			int actionCount = 0;
+			String lastLine; // 获取 上一行
+			String nextLine; // 获取下一行
+			for (int i = 3; i < lineOfContent.length; i++) {
+				String aLine = lineOfContent[i];
+				String toWrite = "";
+				// 遇到结尾
+				if ("".equals(aLine.trim())) {
+					toWrite = aLine.trim() + "\n";
+					bw.write(toWrite);
+					// 遇到事件行
+				} else if (!aLine.trim().startsWith("t")) {
+					actionCount++;
+					if (1 == actionCount) { // 第一次发生任务变化
+						toWrite = lineOfContent[i + 1].trim() + "\n";
+						bw.write(toWrite);
+					} else {
+						lastLine = lineOfContent[i - 1]; // 获取 上一行
+						nextLine = lineOfContent[i + 1]; // 获取下一行
+						String[] lastLineSplit = lastLine.split("  ");
+						String[] nextLineSplit = nextLine.split("  ");
+						String tab = "  ";
+						System.out.println(lastLine);
+						System.out.println(nextLine);
+						toWrite = lastLineSplit[0] + tab + lastLineSplit[1] + tab + lastLineSplit[2] + tab
+								+ lastLineSplit[3] + tab + lastLineSplit[4] + tab + lastLineSplit[5] + tab + tab
+								+ nextLineSplit[6] + tab + nextLineSplit[7] + tab + nextLineSplit[7] + "\n";
+						bw.write(toWrite);
+					}
+				}
+			}
+			bw.close();
+		}
 		System.out.println("log process finish.");
 	}
 

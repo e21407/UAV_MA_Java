@@ -26,10 +26,10 @@ public class Markov {
 	static protected Logger logger = Logger.getLogger(Markov.class);
 
 	// input file name
-	final static String CandPaths_file = "input_data/_input_PathSet3.txt";
-	final static String CapLinks_file = "input_data/_input_Cap_links10000.txt";
-	final static String Info_of_UAVs_file = "input_data/_input_Info_of_nodes.txt";
-	final static String Info_of_WF_Change = "input_data/WF_change_info3.txt";
+	final static String CandPaths_file = ParamInfo.CandPaths_file;
+	final static String CapLinks_file = ParamInfo.CapLinks_file;
+	final static String Info_of_UAVs_file = ParamInfo.Info_of_UAVs_file;
+	final static String Info_of_WF_Change = ParamInfo.Info_of_WF_Change;
 
 	/**
 	 * {"Src-UAV,Dst-UAV":[path1_id,path2_id,...]}, the candidate path-set for all
@@ -161,7 +161,7 @@ public class Markov {
 
 	static Map<String, Double> migCostListOf2Node = new HashMap<>();
 
-	static final int numOfThread = 3;
+	static final int numOfThread = ParamInfo.numOfThread;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -829,13 +829,13 @@ public class Markov {
 		// 避免Infinity的情况
 		// expItem = expItem > Double.MAX_VALUE ? Double.MAX_VALUE : expItem;
 		if (expItem > Double.MAX_VALUE) {
-			// logger.info("MAX_Overflow when setting action");
+//			 logger.info("================================================MAX_Overflow");
 			expItem = Double.MAX_VALUE;
 		}
 		// 避免0.0的情况
 		// expItem = expItem < Double.MIN_VALUE ? Double.MIN_VALUE : expItem;
 		if (expItem < Double.MIN_VALUE) {
-			// logger.info("MIN_Overflow when setting action");
+//			 logger.info("MIN_Overflow==============================");
 			// expItem = Double.MIN_VALUE;
 			return null; // 避免性能骤降的方案
 		}
