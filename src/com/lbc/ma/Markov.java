@@ -48,14 +48,13 @@ public class Markov {
 	// Map<String, Double> taskInfo = new HashMap<>();
 
 	/**
-	 * {worlflow_ID: list_of_a_flow}, list_of_a_flow=[(currTask_ID, succTask_ID,
-	 * needed_bandwidth)...]
+	 * {worlflow_ID: list_of_a_flow}, list_of_a_flow=[(currTask_ID, succTask_ID, needed_bandwidth)...]
 	 */
 	static ArrayList<Workflow> WFInfo = new ArrayList<>();
 	// static Map<Integer, List<Flow>> WFInfo = new HashMap<>();
 
 	/** {"u,v":CapVal}, the Capacity set of all links */
-	Map<String, Double> capLinks = new HashMap<>();
+	static Map<String, Double> capLinks = new HashMap<>();
 
 	/** {Node_ID:CapVal}, the compute capacity of all nodes */
 	static Map<Integer, Double> nodeInfo = new HashMap<>();
@@ -446,20 +445,24 @@ public class Markov {
 					int IUPathID = getTheIUPathIDBetweenTwoTask(WF_ID, taskAID, taskBID);
 					if (IUPathID != -1) {
 						List<String> paths = pathDatabase.get(IUPathID);
-						for (String string : paths) {
-							String[] sstr = string.split(",");
-							int UAV1 = Integer.valueOf(sstr[0]);
-							int UAV2 = Integer.valueOf(sstr[1]);
-							if ((lstEdgeServer.contains(UAV2) && lstEdgeServer.contains(UAV1))
-									|| (lstEdgeServer.contains(UAV1) && lstUAV.contains(UAV2))
-									|| (lstEdgeServer.contains(UAV2) && lstUAV.contains(UAV1))) {
-								routingCost += 1 * EdgeServerLinkCoefficient;
-							} else if ((lstCloudServer.contains(UAV2) && lstCloudServer.contains(UAV1))
-									|| (lstCloudServer.contains(UAV1) && lstEdgeServer.contains(UAV2))
-									|| (lstCloudServer.contains(UAV2) && lstEdgeServer.contains(UAV1))) {
-								routingCost += 1 * CloudServerLinkCoefficient;
-							} else
-								routingCost += 1 * UAVLinkCoefficient;
+						for (String oneHopLink : paths) {
+							/////////旧的计算通讯代价的方式///////////
+//							String[] sstr = oneHopLink.split(",");
+//							int UAV1 = Integer.valueOf(sstr[0]);
+//							int UAV2 = Integer.valueOf(sstr[1]);
+//							if ((lstEdgeServer.contains(UAV2) && lstEdgeServer.contains(UAV1))
+//									|| (lstEdgeServer.contains(UAV1) && lstUAV.contains(UAV2))
+//									|| (lstEdgeServer.contains(UAV2) && lstUAV.contains(UAV1))) {
+//								routingCost += 1 * EdgeServerLinkCoefficient;
+//							} else if ((lstCloudServer.contains(UAV2) && lstCloudServer.contains(UAV1))
+//									|| (lstCloudServer.contains(UAV1) && lstEdgeServer.contains(UAV2))
+//									|| (lstCloudServer.contains(UAV2) && lstEdgeServer.contains(UAV1))) {
+//								routingCost += 1 * CloudServerLinkCoefficient;
+//							} else
+//								routingCost += 1 * UAVLinkCoefficient;
+							/////////旧的计算通讯代价的方式///////////
+							double linkCapacity = capLinks.get(oneHopLink);
+							routingCost += Math.pow(bandwidth, 2) / Math.pow(linkCapacity, 2);
 						}
 					}
 				}
@@ -1127,8 +1130,8 @@ public class Markov {
 	 *            长期平均迁移代价
 	 * @return t+1时刻的队列代价积存
 	 */
-	private static Double getQueueBlock(Double _Qt, Double migrationCost, Double E_avg) {
-		double nextBlock = _Qt + migrationCost - E_avg;
+	private static Double getQueueBlock(Double Q_t, Double migrationCost, Double E_avg) {
+		double nextBlock = Q_t + migrationCost - E_avg;
 		return nextBlock > 0 ? nextBlock : 0;
 	}
 

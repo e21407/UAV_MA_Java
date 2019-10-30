@@ -27,7 +27,7 @@ public class WorkflowGenerator {
 	// 单例模式
 	private static WorkflowGenerator workflowGenerator = new WorkflowGenerator();
 	/** workflow模板文件路径 */
-	String filePath = "input_data/_input_Info_of_workflow_model.txt";
+	String filePath = ParamInfo.Workflow_Model_file;
 
 	/** workflow工作时间服从指数分布的lambda参数 */
 	Double lambda = (double) (1.0 / 1000);
