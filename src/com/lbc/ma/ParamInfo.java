@@ -12,17 +12,17 @@ public class ParamInfo {
 //	final static String Info_of_UAVs_file = "input_data/_input_Info_of_nodes.txt";
 //	final static String Info_of_WF_Change = "input_data/WF_change_info4.txt";
 
-    static final int originalWFNum = 3;    //一开始生产工作流的数量
+    static final int originalWFNum = 2;    //一开始生产工作流的数量
 
     static final double T = 15300; // 运行总时长
 
     static final double M_avg = 5000000.0;
 
-    static final double V = 50;
+    static final double V = 1;
 
-    static final double Beta = 100;
+    static final double Beta = 10;
 
-    static final int numOfThread = 3;    //处理task segment的线程数量
+    static final int numOfThread = 1;    //处理task segment的线程数量
 
     static final int taskBaseCap = 300; // 任务所需资源基础值
     static final int taskRdmCap = 1; // 任务所需资源随机增加范围

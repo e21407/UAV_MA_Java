@@ -14,12 +14,12 @@ public class SetActionThread extends Thread {
 	private CountDownLatch countDownLatch; 
 
 	List<Pair<Timer, Double>> pmf;
-	List<Integer> listOfSatisfiedWF;
+	List<Workflow> listOfSatisfiedWF;
 	ArrayList<String> var_y_wpab;
 	ArrayList<String> var_x_wtk;
 
 	public SetActionThread(CountDownLatch countDownLatch, List<Pair<Timer, Double>> pmf,
-			List<Integer> listOfSatisfiedWF, ArrayList<String> var_y_wpab, ArrayList<String> var_x_wtk) {
+			List<Workflow> listOfSatisfiedWF, ArrayList<String> var_y_wpab, ArrayList<String> var_x_wtk) {
 		super();
 		this.countDownLatch = countDownLatch;
 		this.pmf = pmf;
@@ -29,13 +29,10 @@ public class SetActionThread extends Thread {
 	}
 
 	public void run() {
-		for (Integer WF_ID : listOfSatisfiedWF) {
+		for (Workflow wf : listOfSatisfiedWF) {
 			// List<Flow> lstTaskFlows = WFInfo.get(WF_ID);
-			ArrayList<Flow> lstTaskFlows = null;
-			for (Workflow wf : Markov.WFInfo) {
-				if (wf.getWF_ID() == WF_ID)
-					lstTaskFlows = wf.getFlows();
-			}
+			Integer WF_ID = wf.getWF_ID();
+			ArrayList<Flow> lstTaskFlows = wf.getFlows();
 			if (null != lstTaskFlows)
 				for (Flow aFlow : lstTaskFlows) {
 					int taskAID = aFlow.getCurrTask().getTaskId();
@@ -54,5 +51,4 @@ public class SetActionThread extends Thread {
 		// 倒数器减1  
         countDownLatch.countDown();  
 	}
-
 }

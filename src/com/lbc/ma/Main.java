@@ -13,7 +13,7 @@ public class Main {
 
 		Markov.generateWorkflows(ParamInfo.originalWFNum);
 
-		Markov.markoveFunction();
+		Markov.markovFunction();
 		long endTime = System.currentTimeMillis();
 		BigDecimal durTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000));
 		System.out.println("程序结束，耗时：" + durTime.setScale(4) + "s");
